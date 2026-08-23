@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SESSİZ FREKANS — Silent Frequency</title>
+<link rel="stylesheet" href="style.css?v=12">
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="1280" height="720"></canvas>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div id="objective">— Sinyalin kaynağını bul —</div>
+    <div id="hint"></div>
+    <div id="vu">
+      <div class="vulabel">SES SEVİYESİ</div>
+      <div class="vubar"><div id="vufill"></div></div>
+      <div class="vulabel" style="margin-top:6px">DAYANIKLILIK</div>
+      <div class="vubar stam"><div id="stamfill"></div></div>
+    </div>
+    <div id="stats">
+      <div class="stat"><span class="ico">⚡</span> AKÜ <b id="stBat">3</b></div>
+      <div class="stat"><span class="ico">◉</span> YANKI KÜRESİ <b id="stOrb">2</b></div>
+      <div class="stat"><span class="ico">▮</span> SİNYAL FENERİ
+        <div class="fbar"><div id="stTorch"></div></div>
+      </div>
+      <div class="stat"><span class="ico">⌁</span> <span id="stObjLabel">SİGORTA</span> <b id="stFuse">0/3</b></div>
+      <div class="stat"><span class="ico">✉</span> NOT <b id="stNote">0</b></div>
+    </div>
+    <div id="marked" class="hidden">⚠ İŞARETLENDİN — SESİN İKİ KAT YÜKSEK ⚠</div>
+    <div id="finalbar" class="hidden">
+      <div class="vulabel" style="text-align:center">VERİCİ KAPANIYOR — HAYATTA KAL</div>
+      <div class="vubar big"><div id="finalfill"></div></div>
+    </div>
+  </div>
+
+  <!-- JUMPSCARE -->
+  <div id="jumpscare" class="hidden"><img src="assets/jumpscare.png" alt=""></div>
+
+  <!-- CHAPTER 3 TITLE DROP -->
+  <div id="titledrop" class="hidden">
+    <div class="td-freq">87.9 MHz — CANLI YAYIN</div>
+    <div class="td-title">SESSİZ FREKANS</div>
+    <div class="td-sub">BÖLÜM 3 — SON YAYIN</div>
+    <div class="td-quote">"Bu gece kimse yalnız değil."</div>
+  </div>
+
+  <!-- PAUSE MENU -->
+  <div id="pause" class="overlay hidden">
+    <div class="panel narrow">
+      <div class="freq">DURAKLATILDI</div>
+      <h1 style="font-size:30px">SESSİZ FREKANS</h1>
+      <button id="btnResume">DEVAM ET [P]</button>
+      <button id="btnSettings" class="ghost">⚙ AYARLAR</button>
+      <div id="settingsRow" class="hidden">
+        <div class="setrow">
+          <label>PARLAKLIK</label>
+          <input type="range" id="setBright" min="50" max="180" value="100">
+          <span id="setBrightVal">%100</span>
+        </div>
+        <div class="setrow">
+          <label>SES</label>
+          <input type="range" id="setVol" min="0" max="100" value="80">
+          <span id="setVolVal">%80</span>
+        </div>
+        <div class="setrow">
+          <label>EKRAN SARSINTISI</label>
+          <input type="range" id="setShake" min="0" max="100" value="100">
+          <span id="setShakeVal">%100</span>
+        </div>
+        <div class="setrow">
+          <label>FİLM GRENİ</label>
+          <input type="range" id="setGrain" min="0" max="100" value="55">
+          <span id="setGrainVal">%55</span>
+        </div>
+        <button id="btnSetReset" class="small ghost">VARSAYILANA DÖNDÜR</button>
+      </div>
+      <button id="btnAdminOpen" class="ghost">🔒 YÖNETİCİ PANELİ</button>
+      <div id="pwRow" class="hidden">
+        <input id="pwInput" type="password" maxlength="8" placeholder="ŞİFRE" autocomplete="off">
+        <button id="btnPwOk" class="small">GİR</button>
+        <div id="pwErr"></div>
+      </div>
+      <button id="btnRestartCh" class="ghost">BÖLÜMÜ BAŞTAN BAŞLAT</button>
+      <button id="btnMainMenu" class="ghost">ANA MENÜ</button>
+    </div>
+  </div>
+
+  <!-- ADMIN PANEL -->
+  <div id="admin" class="overlay hidden">
+    <div class="panel adminpanel">
+      <div class="freq" style="color:#4dbd6e">■ YÖNETİCİ PANELİ — ERİŞİM ONAYLANDI ■</div>
+      <div class="admgrid">
+        <div class="admcol">
+          <div class="admtitle">EYLEMLER</div>
+          <button class="adm" id="admSkip">⏭ BÖLÜMÜ GEÇ</button>
+          <button class="adm" id="admObjective">🎯 GÖREVİ TAMAMLA (3/3 ver)</button>
+          <button class="adm" id="admFull">💊 HER ŞEYİ FULLLE</button>
+          <button class="adm" id="admKillAll">☠ TÜM DÜŞMANLARI ÖLDÜR</button>
+          <button class="adm" id="admTeleport">🚪 KAPIYA IŞINLAN</button>
+        </div>
+        <div class="admcol">
+          <div class="admtitle">AÇMA / KAPAMA</div>
+          <button class="adm tgl" id="admGod">🛡 GOD MODE <span>KAPALI</span></button>
+          <button class="adm tgl" id="admGhost">👻 HAYALET (ses çıkarma) <span>KAPALI</span></button>
+          <button class="adm tgl" id="admEsp">👁 ESP — NESNELERİ GÖSTER <span>KAPALI</span></button>
+          <button class="adm tgl" id="admBright">💡 KARANLIĞI KALDIR <span>KAPALI</span></button>
+          <button class="adm tgl" id="admSpeed">⚡ HIZ x2 <span>KAPALI</span></button>
+          <button class="adm tgl" id="admInf">♾ SONSUZ KAYNAK <span>KAPALI</span></button>
+        </div>
+      </div>
+      <button id="btnAdminClose">KAPAT VE DEVAM ET [P]</button>
+    </div>
+  </div>
+
+  <!-- NOTE READER -->
+  <div id="noteui" class="overlay hidden">
+    <div class="panel narrow paper">
+      <div id="noteText"></div>
+      <button id="btnNoteClose">KAPAT [E]</button>
+    </div>
+  </div>
+
+  <!-- TITLE -->
+  <div id="title" class="overlay">
+    <div class="panel">
+      <div class="freq">87.9 MHz</div>
+      <h1>SESSİZ FREKANS</h1>
+      <div class="tag">Onlar göremez. Ama her şeyi duyarlar.</div>
+      <div class="controls">
+        <div><b>W A S D</b> — Hareket</div>
+        <div><b>SHIFT</b> — Koş (dayanıklılık harcar, ÇOK gürültülü)</div>
+        <div><b>C</b> — Sessiz yürüyüş (aç/kapat)</div>
+        <div><b>SOL TIK</b> — Rezonans Mızrağı (sessiz öldürme, akü harcar)</div>
+        <div><b>Q</b> — Yankı Küresi fırlat (sesli tuzak)</div>
+        <div><b>F (basılı tut)</b> — Sinyal Feneri (sersemletir, ÇOK gürültülü)</div>
+        <div><b>E</b> — Etkileşim (radyo, eşya, not, kapı)</div>
+      </div>
+      <button id="btnStart">YAYINA GİR</button>
+      <button id="btnCh2" class="ghost hidden">BÖLÜM 2'DEN DEVAM ET ▸</button>
+      <button id="btnCh3" class="ghost hidden">BÖLÜM 3'TEN DEVAM ET ▸</button>
+      <div class="note">🎧 Kulaklıkla oynayın. Ses, bu oyunun hem silahı hem düşmanıdır.</div>
+    </div>
+  </div>
+
+  <!-- INTRO / CHAPTER CARDS -->
+  <div id="intro" class="overlay hidden">
+    <div class="panel narrow">
+      <div id="introText"></div>
+      <button id="btnNext">DEVAM ▸</button>
+      <div id="skipIntro">geç</div>
+    </div>
+  </div>
+
+  <!-- DEATH -->
+  <div id="dead" class="overlay hidden">
+    <div class="panel">
+      <h2>DİNLENDİN.</h2>
+      <div id="deadQuote" class="quote"></div>
+      <button id="btnRetry">TEKRAR DENE</button>
+    </div>
+  </div>
+
+  <!-- WIN -->
+  <div id="win" class="overlay hidden">
+    <div class="panel">
+      <h2>SİNYAL KESİLDİ</h2>
+      <div class="quote" id="winText"></div>
+      <button id="btnAgain">BAŞTAN OYNA</button>
+    </div>
+  </div>
+</div>
+<script src="game.js?v=12"></script>
+</body>
+</html>
