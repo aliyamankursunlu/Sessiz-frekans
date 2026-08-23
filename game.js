@@ -12,6 +12,8 @@ const rand = (a,b)=>a+Math.random()*(b-a);
 const dist = (a,b)=>Math.hypot(a.x-b.x, a.y-b.y);
 const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 const ang = (a,b)=>Math.atan2(b.y-a.y, b.x-a.x);
+/* ekran dışı culling — FPS kurtarıcı */
+const vis = (x,y,m=90)=> x>cam.x-m && x<cam.x+W+m && y>cam.y-m && y<cam.y+H+m;
 
 let state = 'title';       // title | intro | play | dead | win | note | jumpscare | pause | admin
 let chapter = 1;
@@ -1077,6 +1079,8 @@ function updateCh3(dt){
   }
 
   /* ---------- HAVALANDIRMA MİNİGAME ---------- */
+  if(ch3.phase==='maze'){ updateMaze(dt);
+    return; }
   if(ch3.phase==='vent'){ updateVent(dt);
     hintT-=dt; if(hintT<=0) document.getElementById('hint').textContent='';
     return; }
@@ -1281,12 +1285,240 @@ function updateVent(dt){
   }
   if(hintTxt) setHint(hintTxt,0.1);
 
-  /* --- hepsi bitti mi? --- */
+  /* --- hepsi bitti mi? → LABİRENT KAÇIŞI --- */
   if(!R.ventDone && R.fans.every(f=>f.done)){
     R.ventDone=true;
-    setTimeout(()=>{ if(state==='play') winGame(); }, 2500);
+    setTimeout(()=>{ if(state==='play') startMazePhase(); }, 2500);
   }
   return false;
+}
+
+/* ============================================================
+   VENT LABİRENTİ — fanlar dönünce kanallara giriyorsun:
+   karanlık, dar, arkadan hava basıncı + peşindeki ŞEY
+   ============================================================ */
+function startMazePhase(){
+  const R=ch3;
+  R.phase='maze';
+  AU.doorSlam(); shake=1;
+  AU.startMusic(); // müzik geri girer — final kaçışı
+  WORLD={w:2200,h:1700};
+  // labirent duvarları (dar kanallar, tek doğru yol + çıkmazlar)
+  walls=[
+    // dış çeper
+    {x:0,y:0,w:2200,h:30},{x:0,y:1670,w:2200,h:30},
+    {x:0,y:0,w:30,h:1700},{x:2170,y:0,w:30,h:1700},
+    // yatay ana bloklar
+    {x:30,y:200,w:700,h:30},{x:900,y:200,w:900,h:30},{x:1970,y:200,w:200,h:30},
+    {x:200,y:400,w:900,h:30},{x:1270,y:400,w:700,h:30},
+    {x:30,y:620,w:500,h:30},{x:700,y:620,w:800,h:30},{x:1670,y:620,w:330,h:30},
+    {x:200,y:840,w:700,h:30},{x:1080,y:840,w:900,h:30},
+    {x:30,y:1060,w:900,h:30},{x:1100,y:1060,w:700,h:30},{x:1970,y:1060,w:200,h:30},
+    {x:200,y:1280,w:1100,h:30},{x:1470,y:1280,w:530,h:30},
+    {x:30,y:1480,w:600,h:30},{x:800,y:1480,w:1000,h:30},
+    // dikey engeller (çıkmaz oluşturucular)
+    {x:380,y:230,w:30,h:170},{x:1100,y:30,w:30,h:170},{x:1600,y:230,w:30,h:170},
+    {x:560,y:430,w:30,h:190},{x:900,y:430,w:30,h:190},{x:1470,y:430,w:30,h:190},
+    {x:250,y:650,w:30,h:190},{x:1080,y:650,w:30,h:190},{x:1800,y:650,w:30,h:190},
+    {x:700,y:870,w:30,h:190},{x:1300,y:870,w:30,h:190},
+    {x:450,y:1090,w:30,h:190},{x:950,y:1090,w:30,h:190},{x:1600,y:1090,w:30,h:190},
+    {x:700,y:1310,w:30,h:170},{x:1200,y:1310,w:30,h:170},
+  ];
+  trees=[]; glassPiles=[]; radios=[]; fuses=[]; pickups=[]; notes=[];
+  listeners=[]; maws=[]; crawlers=[]; orbs=[]; noises=[];
+  // oyuncu üst-solda başlar
+  player={ x:100, y:110, r:12, dir:0, moving:false, _atk:false };
+  cam={ x:0, y:0 };
+  // çıkış alt-sağda
+  door={ x:2080, y:1580, w:80, h:60 };
+  // PEŞİNDEKİ ŞEY: yavaş ama asla durmayan takipçi
+  R.hunter={ x:-160, y:110, speed:118, alive:true };
+  R.mazeT=0;
+  // basınç dalgası: arkadan gelen hava (görsel gerilim)
+  R.pressure=0;
+  buildGroundMaze();
+  document.getElementById('hud').classList.remove('hidden');
+  setObjective('KANALLARDAN KAÇ — ÇIKIŞI BUL (yeşil ışık)');
+  setHint('Bir şey seni takip ediyor. DURMA.',5);
+}
+function buildGroundMaze(){
+  ground=document.createElement('canvas');
+  ground.width=WORLD.w; ground.height=WORLD.h;
+  const g=ground.getContext('2d');
+  g.fillStyle='#0a0d10'; g.fillRect(0,0,WORLD.w,WORLD.h);
+  // metal kanal zemini: enine paneller
+  for(let y=0;y<WORLD.h;y+=110){
+    for(let x=0;x<WORLD.w;x+=140){
+      g.fillStyle=`rgba(${rand(16,22)|0},${rand(19,25)|0},${rand(22,29)|0},0.9)`;
+      g.fillRect(x+2,y+2,136,106);
+      // perçinler
+      g.fillStyle='rgba(60,70,80,0.5)';
+      g.fillRect(x+8,y+8,3,3); g.fillRect(x+130,y+8,3,3);
+      g.fillRect(x+8,y+100,3,3); g.fillRect(x+130,y+100,3,3);
+    }
+  }
+  // toz/pas lekeleri
+  for(let i=0;i<160;i++){
+    g.fillStyle=`rgba(${rand(40,70)|0},${rand(28,40)|0},${rand(18,26)|0},${rand(0.05,0.16)})`;
+    g.beginPath(); g.arc(rand(0,WORLD.w),rand(0,WORLD.h),rand(8,42),0,7); g.fill();
+  }
+  // sürüklenme izleri (bir şey buradan geçmiş...)
+  g.strokeStyle='rgba(70,20,18,0.3)'; g.lineWidth=8; g.lineCap='round';
+  for(let i=0;i<7;i++){
+    const sx=rand(100,2000), sy=rand(100,1600);
+    g.beginPath(); g.moveTo(sx,sy); g.lineTo(sx+rand(-160,160),sy+rand(-80,80)); g.stroke();
+  }
+  groundReady=true;
+}
+
+function updateMaze(dt){
+  const R=ch3;
+  R.mazeT+=dt;
+  /* hareket — labirentte koşu her zaman açık ama stamina var */
+  let dx=0,dy=0;
+  if(keys.KeyW)dy--; if(keys.KeyS)dy++; if(keys.KeyA)dx--; if(keys.KeyD)dx++;
+  const wantRun=(keys.ShiftLeft||keys.ShiftRight);
+  if(tired && stamina>35) tired=false;
+  const canRun=wantRun && stamina>1 && !tired;
+  const moving=(dx||dy);
+  const running=canRun&&moving;
+  if(running){ stamina=Math.max(0,stamina-26*dt); if(stamina<=0)tired=true; }
+  else stamina=Math.min(100,stamina+18*dt);
+  const spd=(moving?(running?200:120):0)*(cheats.speed?2:1);
+  if(moving){
+    const l=Math.hypot(dx,dy); dx/=l; dy/=l;
+    player.x+=dx*spd*dt; player.y+=dy*spd*dt;
+    player.moving=true; player.dir=Math.atan2(dy,dx);
+  } else player.moving=false;
+  collide(player);
+
+  /* ayak sesi (metalde yankılı) */
+  footT-=dt;
+  if(moving&&footT<=0){ footT=running?0.24:0.4; AU.step(running,true); }
+
+  /* TAKİPÇİ: duvarları umursamaz (kanal dışından, sacları eze eze geliyor)
+     hızı oyuncu hızına yakın — durursan yakalanırsın */
+  const Hn=R.hunter;
+  if(Hn.alive){
+    const a=ang(Hn,player);
+    // lastik bant: uzaksa hızlanır, yakınsa sabit
+    const d=dist(Hn,player);
+    const sp = Hn.speed + Math.max(0,(d-420))*0.25;
+    Hn.x+=Math.cos(a)*sp*dt; Hn.y+=Math.sin(a)*sp*dt;
+    // metal ezilme sesleri
+    if(Math.random()<dt*2.2){ AU.blip(rand(60,110),0.15,0.12,'square'); if(d<300) shake=Math.max(shake,0.25); }
+    if(d<220 && Math.random()<dt*1.5) AU.whisper();
+    if(d<34 && !cheats.god && !cheats.ghost) return kill('hunter');
+  }
+
+  /* basınç dalgası görseli için */
+  R.pressure=Math.min(1,R.mazeT/8);
+
+  /* çıkışa vardın mı? */
+  if(Math.abs(player.x-door.x-40)<70 && Math.abs(player.y-door.y-30)<70){
+    return winGame();
+  }
+
+  /* kamera */
+  cam.x += (player.x-W/2-cam.x)*dt*6;
+  cam.y += (player.y-H/2-cam.y)*dt*6;
+  cam.x=clamp(cam.x,0,WORLD.w-W); cam.y=clamp(cam.y,0,WORLD.h-H);
+
+  /* HUD */
+  document.getElementById('vufill').style.width=(player.moving?(running?80:40):5)+'%';
+  const sf=document.getElementById('stamfill');
+  sf.style.width=stamina+'%'; sf.classList.toggle('tired',tired);
+  hintT-=dt; if(hintT<=0) document.getElementById('hint').textContent='';
+}
+
+function renderMaze(){
+  const R=ch3;
+  const shakeMul=settings.shake/100;
+  const sx=shake>0?rand(-shake,shake)*8*shakeMul:0;
+  const sy=shake>0?rand(-shake,shake)*8*shakeMul:0;
+  cx.save(); cx.translate(-cam.x+sx,-cam.y+sy);
+  if(groundReady) cx.drawImage(ground,0,0);
+
+  /* duvarlar (kanal sacları) — culling'li */
+  for(const w of walls){
+    if(w.x+w.w<cam.x-50||w.x>cam.x+W+50||w.y+w.h<cam.y-50||w.y>cam.y+H+50) continue;
+    cx.fillStyle='#1d252c'; cx.fillRect(w.x,w.y,w.w,w.h);
+    cx.fillStyle='#28323b'; cx.fillRect(w.x,w.y,w.w,Math.min(5,w.h));
+    cx.strokeStyle='#0b0f13'; cx.lineWidth=2; cx.strokeRect(w.x,w.y,w.w,w.h);
+  }
+
+  /* çıkış: yeşil ışıklı kapak */
+  cx.fillStyle='#12241a'; cx.fillRect(door.x,door.y,door.w,door.h);
+  cx.strokeStyle=`rgba(77,189,110,${0.6+Math.sin(time*6)*0.3})`;
+  cx.lineWidth=3; cx.strokeRect(door.x,door.y,door.w,door.h);
+  cx.fillStyle=`rgba(77,189,110,${0.5+Math.sin(time*6)*0.4})`;
+  cx.beginPath(); cx.arc(door.x+40,door.y-14,7,0,7); cx.fill();
+  cx.fillStyle='#8fd9a8'; cx.font='bold 12px Courier New';
+  cx.fillText('ÇIKIŞ', door.x+18, door.y+36);
+
+  /* TAKİPÇİ — sadece ekrana yakınsa çiz */
+  const Hn=R.hunter;
+  if(Hn.alive && vis(Hn.x,Hn.y,140)){
+    cx.save(); cx.translate(Hn.x,Hn.y);
+    const pl=0.5+Math.sin(time*9)*0.5;
+    // dev karaltı: kanalları dolduran şekilsiz kütle
+    cx.fillStyle='rgba(8,6,12,0.92)';
+    cx.beginPath(); cx.ellipse(0,0,54+pl*6,64+pl*8,Math.sin(time*2)*0.2,0,7); cx.fill();
+    // sac bükücü uzuvlar
+    cx.strokeStyle='rgba(14,10,18,0.9)'; cx.lineWidth=10; cx.lineCap='round';
+    for(let i=0;i<5;i++){
+      const aa=time*3+i*1.26;
+      cx.beginPath(); cx.moveTo(0,0);
+      cx.lineTo(Math.cos(aa)*(70+Math.sin(time*7+i)*18), Math.sin(aa)*(70+Math.cos(time*6+i)*18));
+      cx.stroke();
+    }
+    // tek kızıl odak
+    cx.fillStyle=`rgba(255,60,70,${0.6+pl*0.4})`;
+    cx.beginPath(); cx.arc(0,-10,8+pl*3,0,7); cx.fill();
+    cx.restore();
+  }
+
+  /* OYUNCU */
+  cx.save(); cx.translate(player.x,player.y); cx.rotate(player.dir+Math.PI/2);
+  cx.fillStyle='rgba(0,0,0,0.4)'; cx.beginPath(); cx.ellipse(3,4,11,14,0,0,7); cx.fill();
+  cx.fillStyle='#455239'; cx.beginPath(); cx.ellipse(0,0,10,14,0,0,7); cx.fill();
+  cx.fillStyle='#2c2620'; cx.beginPath(); cx.arc(0,-6,6,0,7); cx.fill();
+  cx.strokeStyle='#111'; cx.lineWidth=3; cx.beginPath(); cx.arc(0,-6,7,Math.PI*0.8,Math.PI*2.2); cx.stroke();
+  cx.restore();
+
+  cx.restore();
+
+  /* karanlık: dar el feneri (kanal klostrofobisi) */
+  dk.clearRect(0,0,W,H);
+  dk.fillStyle='rgba(1,2,4,0.965)'; dk.fillRect(0,0,W,H);
+  dk.globalCompositeOperation='destination-out';
+  const px=player.x-cam.x+sx, py=player.y-cam.y+sy;
+  let gr=dk.createRadialGradient(px,py,8,px,py,95);
+  gr.addColorStop(0,'rgba(0,0,0,0.9)'); gr.addColorStop(1,'rgba(0,0,0,0)');
+  dk.fillStyle=gr; dk.beginPath(); dk.arc(px,py,95,0,7); dk.fill();
+  const a=player.dir;
+  gr=dk.createRadialGradient(px,py,16,px,py,260);
+  gr.addColorStop(0,'rgba(0,0,0,0.95)'); gr.addColorStop(1,'rgba(0,0,0,0)');
+  dk.fillStyle=gr; dk.beginPath(); dk.moveTo(px,py);
+  dk.arc(px,py,260,a-0.36,a+0.36); dk.closePath(); dk.fill();
+  // çıkış ışığı sızıntısı
+  const ex=door.x+40-cam.x, ey=door.y+30-cam.y;
+  if(ex>-100&&ex<W+100&&ey>-100&&ey<H+100){
+    gr=dk.createRadialGradient(ex,ey,4,ex,ey,90);
+    gr.addColorStop(0,'rgba(0,0,0,0.6)'); gr.addColorStop(1,'rgba(0,0,0,0)');
+    dk.fillStyle=gr; dk.beginPath(); dk.arc(ex,ey,90,0,7); dk.fill();
+  }
+  dk.globalCompositeOperation='source-over';
+  cx.drawImage(dark,0,0);
+
+  /* takipçi yakınlık uyarısı: kızıl kenar */
+  const d=R.hunter.alive?dist(R.hunter,player):9999;
+  if(d<420){
+    const p=1-d/420;
+    cx.fillStyle=`rgba(160,15,10,${p*0.16+Math.sin(time*10)*p*0.05})`;
+    cx.fillRect(0,0,W,H);
+  }
+  postProcess();
 }
 
 function renderVent(){
@@ -1631,7 +1863,7 @@ function renderCamView(){
   }
   // statik
   const st=Math.max(0.06, R.camStatic);
-  for(let i=0;i<400;i++){
+  for(let i=0;i<120;i++){
     cx.fillStyle=`rgba(180,255,200,${rand(0,st)})`;
     cx.fillRect(rand(64,W-70),rand(64,H-110),2,2);
   }
@@ -1840,6 +2072,7 @@ function drawCrawler(Cw){
 function render(){
   if(chapter===3 && ch3 && ch3.phase==='room'){ renderCh3Room(); return; }
   if(chapter===3 && ch3 && ch3.phase==='vent'){ renderVent(); return; }
+  if(chapter===3 && ch3 && ch3.phase==='maze'){ renderMaze(); return; }
   const shakeMul = settings.shake/100;
   const sx = shake>0 ? rand(-shake,shake)*8*shakeMul : 0;
   const sy = shake>0 ? rand(-shake,shake)*8*shakeMul : 0;
@@ -1891,12 +2124,14 @@ function render(){
   } else {
     /* interior walls */
     for(const w of walls){
+      if(w.x+w.w<cam.x-50||w.x>cam.x+W+50||w.y+w.h<cam.y-50||w.y>cam.y+H+50) continue;
       cx.fillStyle='#1a2126'; cx.fillRect(w.x,w.y,w.w,w.h);
       cx.fillStyle='#232d33'; cx.fillRect(w.x,w.y,w.w,Math.min(6,w.h));
       cx.strokeStyle='#0c1114'; cx.lineWidth=2; cx.strokeRect(w.x,w.y,w.w,w.h);
     }
     /* glass piles */
     for(const G of glassPiles){
+      if(!vis(G.x,G.y,G.r+20)) continue;
       for(let i=0;i<10;i++){
         const a=(i/10)*6.28+G.x;
         cx.fillStyle=`rgba(${170+((i*37)%60)|0},200,210,0.28)`;
@@ -1926,7 +2161,7 @@ function render(){
   }
 
   /* fuses / tapes */
-  for(const F of fuses){ if(F.got) continue;
+  for(const F of fuses){ if(F.got||!vis(F.x,F.y)) continue;
     cx.fillStyle='rgba(255,200,80,0.12)'; cx.beginPath(); cx.arc(F.x,F.y,20+Math.sin(time*4)*4,0,7); cx.fill();
     if(chapter===1){ cx.fillStyle='#ffb03b'; cx.fillRect(F.x-5,F.y-9,10,18);
       cx.fillStyle='#7a5a20'; cx.fillRect(F.x-5,F.y-3,10,6); }
@@ -1934,12 +2169,12 @@ function render(){
       cx.fillStyle='#211a10'; cx.beginPath(); cx.arc(F.x-4,F.y,3,0,7); cx.arc(F.x+4,F.y,3,0,7); cx.fill(); }
   }
   /* pickups */
-  for(const P of pickups){ if(P.got) continue;
+  for(const P of pickups){ if(P.got||!vis(P.x,P.y)) continue;
     if(P.type==='bat'){ cx.fillStyle='#6fc7d9'; cx.fillRect(P.x-6,P.y-8,12,16); cx.fillRect(P.x-3,P.y-11,6,4); }
     else { cx.fillStyle='#c98fd9'; cx.beginPath(); cx.arc(P.x,P.y,8,0,7); cx.fill(); }
   }
   /* notes */
-  for(const N of notes){ if(N.got) continue;
+  for(const N of notes){ if(N.got||!vis(N.x,N.y)) continue;
     cx.save(); cx.translate(N.x,N.y); cx.rotate(0.15);
     cx.fillStyle='#d8cba8'; cx.fillRect(-8,-10,16,20);
     cx.strokeStyle='#8a7f60'; cx.lineWidth=1;
@@ -1950,6 +2185,7 @@ function render(){
   }
   /* radios */
   for(const R of radios){
+    if(!vis(R.x,R.y)) continue;
     cx.fillStyle='#20282c'; cx.fillRect(R.x-14,R.y-10,28,20);
     cx.fillStyle=R.on?'#ffb03b':'#3a4a44'; cx.fillRect(R.x-10,R.y-6,12,8);
     cx.strokeStyle='#39454a'; cx.beginPath(); cx.moveTo(R.x+8,R.y-10); cx.lineTo(R.x+16,R.y-26); cx.stroke();
@@ -1970,16 +2206,14 @@ function render(){
                    : `rgba(255,176,59,${n.life*0.4})`;
     cx.lineWidth=2; cx.beginPath(); cx.arc(n.x,n.y,n.r,0,7); cx.stroke();
   }
-  /* trees — katmanlı taç, rüzgar salınımı, ay ışığı kenarı */
+  /* trees — SADECE EKRANDAKİLER çizilir (culling) */
   for(const t of trees){
+    if(!vis(t.x,t.y,t.r+40)) continue;
     const sway = Math.sin(time*0.7 + t.x*0.01)*t.r*0.06;
-    // uzun yumuşak gölge
     cx.fillStyle='rgba(0,0,0,0.45)';
     cx.beginPath(); cx.ellipse(t.x+t.r*0.35, t.y+t.r*0.45, t.r*1.05, t.r*0.8, 0.3, 0, 7); cx.fill();
-    // dış taç (en karanlık)
     cx.fillStyle='#0a140e';
     cx.beginPath(); cx.arc(t.x+sway, t.y, t.r, 0, 7); cx.fill();
-    // orta katman — pürüzlü kenar hissi için 3 yaprak kümesi
     cx.fillStyle='#101f15';
     for(let k=0;k<3;k++){
       const a=k*2.09 + t.x;
@@ -1987,17 +2221,15 @@ function render(){
       cx.arc(t.x+sway+Math.cos(a)*t.r*0.3, t.y+Math.sin(a)*t.r*0.3, t.r*0.55, 0, 7);
       cx.fill();
     }
-    // iç aydınlık (ay ışığı üst-sol)
     cx.fillStyle='#1a2c1f';
     cx.beginPath(); cx.arc(t.x+sway-t.r*0.28, t.y-t.r*0.28, t.r*0.45, 0, 7); cx.fill();
-    // ay ışığı rim
     cx.strokeStyle='rgba(140,170,160,0.10)'; cx.lineWidth=2;
     cx.beginPath(); cx.arc(t.x+sway, t.y, t.r-1, Math.PI*1.05, Math.PI*1.75); cx.stroke();
   }
 
-  for(const Cw of crawlers) drawCrawler(Cw);
-  for(const L of listeners) drawListener(L);
-  for(const M of maws) drawMaw(M);
+  for(const Cw of crawlers) if(vis(Cw.x,Cw.y,60)) drawCrawler(Cw);
+  for(const L of listeners) if(vis(L.x,L.y,60)) drawListener(L);
+  for(const M of maws) if(vis(M.x,M.y,80)) drawMaw(M);
 
   /* PLAYER */
   cx.save(); cx.translate(player.x,player.y); cx.rotate(player.dir+Math.PI/2);
@@ -2084,64 +2316,74 @@ function render(){
    SİNEMATİK KATMANLAR: sis, gren, renk
    ============================================================ */
 const grainCv = document.createElement('canvas');
-grainCv.width=320; grainCv.height=180;
+grainCv.width=160; grainCv.height=90;   // küçük buffer = ucuz üretim
 const grainCtx = grainCv.getContext('2d');
 let grainT=0;
 function makeGrain(){
-  const d=grainCtx.createImageData(320,180);
+  const d=grainCtx.createImageData(160,90);
   for(let i=0;i<d.data.length;i+=4){
     const v=(Math.random()*255)|0;
-    d.data[i]=v; d.data[i+1]=v; d.data[i+2]=v; d.data[i+3]=18;
+    d.data[i]=v; d.data[i+1]=v; d.data[i+2]=v; d.data[i+3]=22;
   }
   grainCtx.putImageData(d,0,0);
 }
 makeGrain();
 
+/* STATİK post-process katmanı: vinyet + soğuk renk tonu TEK SEFER üretilir,
+   her karede tek drawImage — eski multiply/overlay blend'lerin yükü yok */
+const ppCv = document.createElement('canvas');
+ppCv.width=W; ppCv.height=H;
+(function(){
+  const p=ppCv.getContext('2d');
+  // soğuk mavi-yeşil ton (eski multiply etkisinin ucuz taklidi)
+  const cg=p.createLinearGradient(0,0,0,H);
+  cg.addColorStop(0,'rgba(40,70,95,0.10)');
+  cg.addColorStop(1,'rgba(30,60,60,0.12)');
+  p.fillStyle=cg; p.fillRect(0,0,W,H);
+  // derin köşe vinyeti
+  const vg=p.createRadialGradient(W/2,H/2,H*0.42,W/2,H/2,H*0.85);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.5)');
+  p.fillStyle=vg; p.fillRect(0,0,W,H);
+})();
+
 function drawFog(){
-  // 3 katman: uzak yavaş büyük, orta, yakın hızlı parçalı
+  // 2 katman, 3'er elips — eski 12 elipsin görsel etkisinin ~%90'ı, yarı maliyet
   const layers = chapter===2
-    ? [ [0.020, 12, 380, 90], [0.030, 26, 240, 60], [0.022, 44, 150, 40] ]
-    : [ [0.035, 10, 420,110], [0.045, 24, 280, 75], [0.030, 46, 170, 50] ];
-  for(let li=0; li<3; li++){
+    ? [ [0.028, 14, 380, 90], [0.030, 38, 190, 50] ]
+    : [ [0.045, 12, 420,110], [0.038, 40, 210, 60] ];
+  cx.fillStyle = chapter===2 ? 'rgba(110,125,135,0.03)' : 'rgba(135,158,150,0.04)';
+  for(let li=0; li<2; li++){
     const [alpha, spd, rw, rh] = layers[li];
+    cx.globalAlpha=1;
     cx.fillStyle = chapter===2
       ? `rgba(110,125,135,${alpha})` : `rgba(135,158,150,${alpha})`;
-    for(let i=0;i<4;i++){
-      const fx=((time*spd + i*(W/3) + li*230) % (W+rw*2)) - rw;
-      const fy= 120+li*170 + i*95 + Math.sin(time*0.35+i*2+li)*46;
-      cx.beginPath(); cx.ellipse(fx, fy, rw, rh, Math.sin(time*0.2+i)*0.2, 0, 7); cx.fill();
+    for(let i=0;i<3;i++){
+      const fx=((time*spd + i*(W/2.2) + li*260) % (W+rw*2)) - rw;
+      const fy= 140+li*230 + i*110 + Math.sin(time*0.35+i*2+li)*46;
+      cx.beginPath(); cx.ellipse(fx, fy, rw, rh, 0, 0, 7); cx.fill();
     }
   }
-  // 87.9 sinyal bölgesinde sisin "parazitlenmesi" (bölüm 1 kule civarı / bölüm 2 verici)
+  // 87.9 sinyal paraziti (ucuz, sadece kule civarı)
   const sigY = chapter===1 ? 300 : 350;
   if(cam.y < sigY+400){
-    cx.save(); cx.globalAlpha=0.05+Math.sin(time*9)*0.03;
+    cx.globalAlpha=0.05+Math.sin(time*9)*0.03;
     cx.fillStyle='#9fb8c8';
-    for(let i=0;i<6;i++){
-      cx.fillRect(rand(0,W), rand(0,H*0.4), rand(30,140), 1.5);
-    }
-    cx.restore();
+    for(let i=0;i<4;i++) cx.fillRect(rand(0,W), rand(0,H*0.4), rand(30,140), 1.5);
+    cx.globalAlpha=1;
   }
 }
 
 function postProcess(){
-  // film greni (canlı)
-  grainT+=1;
-  if(grainT%3===0) makeGrain();
-  cx.save(); cx.globalAlpha=0.55*(settings.grain/55); cx.globalCompositeOperation='overlay';
-  cx.drawImage(grainCv,0,0,W,H);
-  cx.restore();
-  // renk derecelendirme: soğuk gölgeler
-  cx.save(); cx.globalCompositeOperation='multiply';
-  const cg=cx.createLinearGradient(0,0,0,H);
-  cg.addColorStop(0,'rgba(190,210,225,1)');
-  cg.addColorStop(1,'rgba(175,195,200,1)');
-  cx.fillStyle=cg; cx.fillRect(0,0,W,H);
-  cx.restore();
-  // köşe vinyeti (derin)
-  const vg=cx.createRadialGradient(W/2,H/2,H*0.42,W/2,H/2,H*0.85);
-  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.5)');
-  cx.fillStyle=vg; cx.fillRect(0,0,W,H);
+  // statik ton+vinyet: tek ucuz drawImage
+  cx.drawImage(ppCv,0,0);
+  // film greni: normal blend, seyrek yenileme (overlay/multiply YOK — GPU dostu)
+  if(settings.grain>0){
+    grainT+=1;
+    if(grainT%6===0) makeGrain();
+    cx.save(); cx.globalAlpha=0.30*(settings.grain/55);
+    cx.drawImage(grainCv,0,0,W,H);
+    cx.restore();
+  }
 }
 
 function espTag(wx,wy,label,color){
@@ -2199,6 +2441,7 @@ function kill(by){
     : by==='stalker' ? '"Kapı açıktı. Karanlık, davetiyeyi kabul etti.<br>Fener sadece gördüğünü korkutabilir."'
     : by==='watcher' ? '"Pencere. Hep pencereydi.<br>Sen kameralara bakarken, o SANA bakıyordu."'
     : by==='ventcreep' ? '"Işığı bir saniye indirdin.<br>Kanallarda bir saniye, bir ömürdür."'
+    : by==='hunter' ? '"Kanallarda durmak yoktur.<br>Sacların ezilme sesi... hep bir adım gerideydi."'
     : '"Kulak çanakları kafana kapandı.<br>Ve dünyadaki bütün sesler tek bir frekansa indi: 87.9"';
   }, 1400);
 }
@@ -2217,12 +2460,12 @@ function winGame(){
     AU.stopMusic(3);
     AU.blip(87.9*4,1.5,0.2,'sine');
     document.getElementById('winText').innerHTML =
-    `Üçüncü fan dönmeye başladığında, bütün bina derin bir<br>
-    nefes aldı. Temiz hava kanallarda uğuldadı — ve o uğultu,<br>
-    87.9'un son kalıntılarını duvarlardan söküp götürdü.<br><br>
-    Kanallardaki tırmalama sesleri... durdu.<br>
-    Pencereden ilk gün ışığı sızdı.<br><br>
-    Ve hoparlörden, parazitsiz, tertemiz bir ses geldi:<br><br>
+    `Kapağı omzunla ittin ve kanallardan dışarı, şafağın<br>
+    ilk ışığına yuvarlandın. Arkandaki metal uğultu —<br>
+    sacları büken o ŞEY — kapakta durdu. Işığa çıkamadı.<br><br>
+    Temiz hava fanlardan bütün binaya yayılıyordu.<br>
+    87.9'un son kalıntıları duvarlardan sökülüp gitti.<br><br>
+    Ve cebindeki telsizden, parazitsiz, tertemiz bir ses:<br><br>
     <i>"Deniz? Beni... duyuyor musun?"</i><br><br>
     Bu sefer ses tersine çevrilmemişti.<br>
     Bu sefer gerçekti.<br><br>
@@ -2521,6 +2764,9 @@ $('admKillAll').onclick=()=>{
   }
   if(chapter===3 && ch3 && ch3.phase==='vent'){
     n+=ch3.creeps.length; ch3.creeps=[]; ch3.spawnT=999;
+  }
+  if(chapter===3 && ch3 && ch3.phase==='maze' && ch3.hunter && ch3.hunter.alive){
+    ch3.hunter.alive=false; n++;
   }
   setHint(`${n} düşman etkisiz hale getirildi.`,4);
   AU.thud(0.6); flashBtn('admKillAll');
