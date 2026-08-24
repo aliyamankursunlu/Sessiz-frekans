@@ -1687,13 +1687,7 @@ function renderMaze(){
   }
 
   /* OYUNCU */
-  cx.save(); cx.translate(player.x,player.y); cx.rotate(player.dir+Math.PI/2);
-  cx.fillStyle='rgba(0,0,0,0.4)'; cx.beginPath(); cx.ellipse(3,4,11,14,0,0,7); cx.fill();
-  cx.fillStyle= player.slowT>0 ? '#5a4030' : '#455239';
-  cx.beginPath(); cx.ellipse(0,0,10,14,0,0,7); cx.fill();
-  cx.fillStyle='#2c2620'; cx.beginPath(); cx.arc(0,-6,6,0,7); cx.fill();
-  cx.strokeStyle='#111'; cx.lineWidth=3; cx.beginPath(); cx.arc(0,-6,7,Math.PI*0.8,Math.PI*2.2); cx.stroke();
-  cx.restore();
+  drawPlayer();
 
   cx.restore();
 
@@ -2115,53 +2109,132 @@ dark.width=W; dark.height=H;
 const dk = dark.getContext('2d');
 
 
+/* ============================================================
+   KARAKTER ÇİZİMLERİ v2 — insansı siluetler + yürüme animasyonu
+   ============================================================ */
+function drawPlayer(){
+  const mv=player.moving;
+  const step=mv?Math.sin(time*11):0;
+  const sway=mv?Math.sin(time*5.5)*0.05:0;
+  const slow=player.slowT&&player.slowT>0;
+  cx.save(); cx.translate(player.x,player.y); cx.rotate(player.dir+Math.PI/2+sway);
+  cx.fillStyle='rgba(0,0,0,0.42)';
+  cx.beginPath(); cx.ellipse(2,3,13,16,0,0,7); cx.fill();
+  // botlar (adım)
+  cx.fillStyle='#231e19';
+  cx.beginPath(); cx.ellipse(-4.6,7-step*5,3.2,5.6,0,0,7); cx.fill();
+  cx.beginPath(); cx.ellipse(4.6,7+step*5,3.2,5.6,0,0,7); cx.fill();
+  // parka gövde + omuzlar
+  const bodyCol = slow ? '#5a4030' : (sneak?'#333f2c':'#47543a');
+  cx.fillStyle=bodyCol;
+  cx.beginPath(); cx.ellipse(0,1,10,13,0,0,7); cx.fill();
+  cx.beginPath(); cx.arc(-8.5,-4,4.4,0,7); cx.arc(8.5,-4,4.4,0,7); cx.fill();
+  // fermuar + cepler
+  cx.strokeStyle='rgba(18,24,14,0.85)'; cx.lineWidth=1.3;
+  cx.beginPath(); cx.moveTo(0,-7); cx.lineTo(0,11); cx.stroke();
+  cx.beginPath(); cx.moveTo(-6,6); cx.lineTo(-2,6); cx.stroke();
+  cx.beginPath(); cx.moveTo(2,6); cx.lineTo(6,6); cx.stroke();
+  // sırt çantası
+  cx.fillStyle='#3a3126';
+  cx.beginPath(); cx.ellipse(0,9.5,7,4.6,0,0,7); cx.fill();
+  cx.strokeStyle='#221d15'; cx.lineWidth=1.1; cx.stroke();
+  // kollar (salınımlı)
+  cx.strokeStyle=bodyCol; cx.lineWidth=5; cx.lineCap='round';
+  cx.beginPath(); cx.moveTo(-8.5,-4); cx.lineTo(-11,-13+step*2); cx.stroke();
+  cx.beginPath(); cx.moveTo(8.5,-4); cx.lineTo(11,-12-step*2); cx.stroke();
+  // eller
+  cx.fillStyle='#c9a186';
+  cx.beginPath(); cx.arc(-11,-14.5+step*2,2.5,0,7); cx.fill();
+  cx.beginPath(); cx.arc(11,-13.5-step*2,2.5,0,7); cx.fill();
+  // el feneri (sol el)
+  cx.fillStyle='#63686d'; cx.fillRect(-12.6,-21+step*2,3.4,6.5);
+  cx.fillStyle='rgba(255,240,185,0.95)'; cx.fillRect(-12.6,-22.6+step*2,3.4,2);
+  // Rezonans Mızrağı (sağ el)
+  cx.strokeStyle='#7d8288'; cx.lineWidth=2.4;
+  cx.beginPath(); cx.moveTo(11,-3-step*2); cx.lineTo(11,-29-step*2); cx.stroke();
+  cx.strokeStyle='#41444a'; cx.lineWidth=4;
+  cx.beginPath(); cx.moveTo(11,-8-step*2); cx.lineTo(11,-13-step*2); cx.stroke();
+  cx.fillStyle='#6fc7d9';
+  cx.beginPath(); cx.arc(11,-30.5-step*2,3,0,7); cx.fill();
+  cx.fillStyle='rgba(140,225,240,0.3)';
+  cx.beginPath(); cx.arc(11,-30.5-step*2,5.2,0,7); cx.fill();
+  // kapüşon kürkü + kafa
+  cx.fillStyle='#5a5142'; cx.beginPath(); cx.arc(0,-4.5,8.4,0,7); cx.fill();
+  cx.fillStyle='#4a4336'; cx.beginPath(); cx.arc(0,-4.5,7.2,0,7); cx.fill();
+  cx.fillStyle='#2e2721'; cx.beginPath(); cx.arc(0,-5,6,0,7); cx.fill();
+  cx.fillStyle='#c9a186'; cx.beginPath(); cx.ellipse(0,-9.4,3.6,2.2,0,0,7); cx.fill();
+  // kulaklık: bant + kupalar
+  cx.fillStyle='#101216'; cx.fillRect(-7.2,-6.4,14.4,2.6);
+  cx.beginPath(); cx.arc(-7.4,-5,2.8,0,7); cx.arc(7.4,-5,2.8,0,7); cx.fill();
+  cx.fillStyle='#2a6f7d';
+  cx.beginPath(); cx.arc(-7.4,-5,1.2,0,7); cx.arc(7.4,-5,1.2,0,7); cx.fill();
+  cx.restore();
+}
+
 function drawYerli(L){
   if(!L.alive){
     cx.fillStyle='#141a17'; cx.beginPath(); cx.ellipse(L.x,L.y,18,9,L.dir,0,7); cx.fill();
     cx.fillStyle='rgba(150,80,30,0.3)'; cx.beginPath(); cx.ellipse(L.x+3,L.y+3,12,6,L.dir,0,7); cx.fill();
     return;
   }
-  // meşale ışık halesi (sahnede)
   const fl=0.7+Math.sin(time*11+L.drool)*0.3;
   cx.fillStyle=`rgba(255,150,60,${0.06+fl*0.04})`;
   cx.beginPath(); cx.arc(L.x,L.y,75,0,7); cx.fill();
-  const tw=L.twitch>0?Math.sin(time*60)*0.15:0;
+  const spd=L.state==='chase'?15:L.state==='investigate'?10:6;
+  const step=Math.sin(time*spd+L.drool*3);
+  const tw=L.twitch>0?Math.sin(time*60)*0.12:0;
   cx.save(); cx.translate(L.x,L.y); cx.rotate(L.dir+Math.PI/2+tw);
-  cx.fillStyle='rgba(0,0,0,0.45)'; cx.beginPath(); cx.ellipse(4,5,13,17,0,0,7); cx.fill();
-  // yırtık kıyafetli insansı gövde
-  cx.fillStyle = L.stun>0?'#232833':'#4a3b2e';
-  cx.beginPath(); cx.ellipse(0,0,12,16,0,0,7); cx.fill();
-  cx.fillStyle='#3a2d22'; cx.fillRect(-11,-4,22,7); // kemer/paçavra
-  // kollar: biri MEŞALE tutuyor
-  cx.strokeStyle='#3d3126'; cx.lineWidth=4; cx.lineCap='round';
-  cx.beginPath(); cx.moveTo(-10,-2); cx.lineTo(-17,8); cx.stroke();
-  cx.beginPath(); cx.moveTo(10,-2); cx.lineTo(16,-14); cx.stroke();
-  // meşale
+  cx.fillStyle='rgba(0,0,0,0.42)'; cx.beginPath(); cx.ellipse(3,4,12,16,0,0,7); cx.fill();
+  // çarıklı ayaklar
+  cx.fillStyle='#2c241c';
+  cx.beginPath(); cx.ellipse(-4.4,7-step*4.5,3,5.4,0,0,7); cx.fill();
+  cx.beginPath(); cx.ellipse(4.4,7+step*4.5,3,5.4,0,0,7); cx.fill();
+  // yırtık cübbe + omuzlar
+  cx.fillStyle= L.stun>0?'#232833':'#4a3b2e';
+  cx.beginPath(); cx.ellipse(0,1,9.6,12.6,0,0,7); cx.fill();
+  cx.beginPath(); cx.arc(-8,-4,4.2,0,7); cx.arc(8,-4,4.2,0,7); cx.fill();
+  cx.strokeStyle='#33291f'; cx.lineWidth=1.2;
+  cx.beginPath(); cx.moveTo(-4,3); cx.lineTo(-6,10); cx.stroke();
+  cx.beginPath(); cx.moveTo(3,1); cx.lineTo(5,9); cx.stroke();
+  // boyunda frekans tılsımı (radyo lambası)
+  cx.strokeStyle='#6a6f73'; cx.lineWidth=1;
+  cx.beginPath(); cx.moveTo(-4,-6); cx.quadraticCurveTo(0,-2,4,-6); cx.stroke();
+  cx.fillStyle=`rgba(255,190,90,${0.5+fl*0.3})`;
+  cx.beginPath(); cx.arc(0,-2.4,1.8,0,7); cx.fill();
+  // sol kol: sopa
+  cx.strokeStyle='#4a3b2e'; cx.lineWidth=4.6; cx.lineCap='round';
+  cx.beginPath(); cx.moveTo(-8,-4); cx.lineTo(-12,-12+step*1.5); cx.stroke();
   cx.strokeStyle='#5a4630'; cx.lineWidth=3;
-  cx.beginPath(); cx.moveTo(16,-14); cx.lineTo(18,-26); cx.stroke();
-  cx.fillStyle=`rgba(255,${140+fl*60|0},40,0.95)`;
-  cx.beginPath(); cx.ellipse(18,-30,4+fl*2,7+fl*3,0,0,7); cx.fill();
-  cx.fillStyle=`rgba(255,220,120,${0.5+fl*0.3})`;
-  cx.beginPath(); cx.ellipse(18,-30,2,3.4,0,0,7); cx.fill();
-  // kafa: GÖZLERİ VAR — hastalıklı sarı parlıyor
-  cx.fillStyle='#57483a'; cx.beginPath(); cx.arc(0,-9,7.4,0,7); cx.fill();
-  const eg = L.state==='chase' ? 1 : 0.55;
+  cx.beginPath(); cx.moveTo(-12,-12+step*1.5); cx.lineTo(-15,-24+step*1.5); cx.stroke();
+  // sağ kol: MEŞALE
+  cx.strokeStyle='#4a3b2e'; cx.lineWidth=4.6;
+  cx.beginPath(); cx.moveTo(8,-4); cx.lineTo(13,-13); cx.stroke();
+  cx.strokeStyle='#5a4630'; cx.lineWidth=3;
+  cx.beginPath(); cx.moveTo(13,-13); cx.lineTo(15,-24); cx.stroke();
+  cx.fillStyle=`rgba(255,${120+fl*70|0},30,0.9)`;
+  cx.beginPath(); cx.ellipse(15,-28,3.6+fl*1.6,6+fl*2.6,Math.sin(time*9)*0.2,0,7); cx.fill();
+  cx.fillStyle=`rgba(255,225,130,${0.5+fl*0.35})`;
+  cx.beginPath(); cx.ellipse(15,-27,1.7,3,0,0,7); cx.fill();
+  // kafa: gözlü, tel halkalı
+  cx.fillStyle='#57483a'; cx.beginPath(); cx.arc(0,-9,6.8,0,7); cx.fill();
+  cx.fillStyle='#3a3025';
+  cx.beginPath(); cx.arc(0,-8,6.4,Math.PI*0.12,Math.PI*0.88); cx.closePath(); cx.fill();
+  const eg=L.state==='chase'?1:0.55;
   cx.fillStyle=`rgba(255,200,60,${eg})`;
-  cx.beginPath(); cx.arc(-2.8,-10.4,1.7,0,7); cx.arc(2.8,-10.4,1.7,0,7); cx.fill();
-  // kulaklarına kendi elleriyle taktıkları tel halkalar (frekans tarikatı)
-  cx.strokeStyle='#8a8f93'; cx.lineWidth=1.4;
-  cx.beginPath(); cx.arc(-7,-9,3,0,7); cx.stroke();
-  cx.beginPath(); cx.arc(7,-9,3,0,7); cx.stroke();
+  cx.beginPath(); cx.arc(-2.6,-11,1.5,0,7); cx.arc(2.6,-11,1.5,0,7); cx.fill();
+  cx.strokeStyle='#8a8f93'; cx.lineWidth=1.2;
+  cx.beginPath(); cx.arc(-6.8,-9,2.6,0,7); cx.stroke();
+  cx.beginPath(); cx.arc(6.8,-9,2.6,0,7); cx.stroke();
   if(L.state==='chase'){
-    const mo=2.4+Math.sin(time*18)*1.6;
-    cx.fillStyle='#1a0a0d'; cx.beginPath(); cx.ellipse(0,-5.6,2.6,mo,0,0,7); cx.fill();
+    const mo=2.2+Math.sin(time*18)*1.4;
+    cx.fillStyle='#1a0a0d'; cx.beginPath(); cx.ellipse(0,-6.2,2.4,mo,0,0,7); cx.fill();
   }
   cx.restore();
   if(L.scream>0){ cx.strokeStyle=`rgba(255,150,60,${L.scream})`; cx.lineWidth=2;
     cx.beginPath(); cx.arc(L.x,L.y,(0.6-L.scream)*90+20,0,7); cx.stroke(); }
-  if(L.stun>0){ cx.fillStyle='#6fc7d9'; cx.font='14px Courier New'; cx.fillText('✶ ✶',L.x-12,L.y-30); }
-  if(L.state==='chase'){ cx.fillStyle='#ff4b3e'; cx.font='bold 20px Courier New'; cx.fillText('!',L.x-4,L.y-30); }
-  else if(L.state==='investigate'){ cx.fillStyle='#ffb03b'; cx.font='bold 16px Courier New'; cx.fillText('?',L.x-4,L.y-30); }
+  if(L.stun>0){ cx.fillStyle='#6fc7d9'; cx.font='14px Courier New'; cx.fillText('✶ ✶',L.x-12,L.y-32); }
+  if(L.state==='chase'){ cx.fillStyle='#ff4b3e'; cx.font='bold 20px Courier New'; cx.fillText('!',L.x-4,L.y-32); }
+  else if(L.state==='investigate'){ cx.fillStyle='#ffb03b'; cx.font='bold 16px Courier New'; cx.fillText('?',L.x-4,L.y-32); }
 }
 
 function drawListener(L){
@@ -2170,72 +2243,76 @@ function drawListener(L){
     cx.fillStyle='rgba(120,40,80,0.35)'; cx.beginPath(); cx.ellipse(L.x+4,L.y+4,14,7,L.dir,0,7); cx.fill();
     return;
   }
-  const tw = L.twitch>0 ? Math.sin(time*60)*0.22 : 0;
+  const g=L.hearGlow, pulse=0.5+Math.sin(time*10)*0.5;
+  const spd=L.state==='chase'?17:L.state==='investigate'?10:5.5;
+  const step=Math.sin(time*spd+L.drool*2);
+  const tw=L.twitch>0?Math.sin(time*60)*0.2:0;
   cx.save(); cx.translate(L.x,L.y); cx.rotate(L.dir+Math.PI/2+tw);
-  // shadow
-  cx.fillStyle='rgba(0,0,0,0.45)'; cx.beginPath(); cx.ellipse(4,5,15,20,0,0,7); cx.fill();
-  // hunched body w/ spine ridges
-  cx.fillStyle = L.stun>0?'#232833':'#352c33';
-  cx.beginPath(); cx.ellipse(0,0,13,18,0,0,7); cx.fill();
-  cx.strokeStyle='#4d3f47'; cx.lineWidth=2;
-  for(let i=-1;i<=2;i++){ cx.beginPath(); cx.arc(0,i*6-2,7,Math.PI*1.15,Math.PI*1.85); cx.stroke(); }
-  // long clawed arms
-  cx.strokeStyle='#2b2229'; cx.lineWidth=4; cx.lineCap='round';
-  const armSw = Math.sin(time*5+L.drool)*3;
-  cx.beginPath(); cx.moveTo(-11,-2); cx.lineTo(-19,10+armSw); cx.stroke();
-  cx.beginPath(); cx.moveTo(11,-2); cx.lineTo(19,10-armSw); cx.stroke();
-  cx.strokeStyle='#1c1519'; cx.lineWidth=1.6;
-  for(const s of [-1,1]){
-    for(let f=0;f<3;f++){ cx.beginPath(); cx.moveTo(s*19,10+(s<0?armSw:-armSw)); cx.lineTo(s*19+s*(3+f*2),16+(s<0?armSw:-armSw)+f*2); cx.stroke(); }
+  cx.fillStyle='rgba(0,0,0,0.45)'; cx.beginPath(); cx.ellipse(3,4,15,19,0,0,7); cx.fill();
+  // bükük insansı bacaklar
+  cx.strokeStyle='#241d23'; cx.lineWidth=4.6; cx.lineCap='round';
+  cx.beginPath(); cx.moveTo(-5,8); cx.lineTo(-11,13+step*2.5); cx.lineTo(-8,20+step*3.5); cx.stroke();
+  cx.beginPath(); cx.moveTo(5,8); cx.lineTo(11,13-step*2.5); cx.lineTo(8,20-step*3.5); cx.stroke();
+  cx.fillStyle='#1c161b';
+  cx.beginPath(); cx.ellipse(-8,21+step*3.5,2.6,4,0,0,7); cx.fill();
+  cx.beginPath(); cx.ellipse(8,21-step*3.5,2.6,4,0,0,7); cx.fill();
+  // kambur gövde: dar kalça + geniş omuz
+  cx.fillStyle= L.stun>0?'#232833':'#372e35';
+  cx.beginPath(); cx.ellipse(0,4,7.5,10,0,0,7); cx.fill();
+  cx.beginPath(); cx.ellipse(0,-4,10.5,9,0,0,7); cx.fill();
+  // omurga dikenleri
+  cx.fillStyle='#4d3f47';
+  for(let i=0;i<4;i++){ cx.beginPath(); cx.arc(0,9-i*4.5,1.7-i*0.15,0,7); cx.fill(); }
+  // uzun pençeli kollar
+  cx.strokeStyle='#2b2229'; cx.lineWidth=4.8;
+  cx.beginPath(); cx.moveTo(-9,-6); cx.lineTo(-15,-13+step*2); cx.lineTo(-12,-21+step*2); cx.stroke();
+  cx.beginPath(); cx.moveTo(9,-6); cx.lineTo(15,-13-step*2); cx.lineTo(12,-21-step*2); cx.stroke();
+  cx.strokeStyle='#171217'; cx.lineWidth=1.5;
+  for(const s2 of [-1,1]){
+    const hx=s2*12, hy=-21+(s2<0?step*2:-step*2);
+    for(let f=-1;f<=1;f++){ cx.beginPath(); cx.moveTo(hx,hy); cx.lineTo(hx+f*2.6,hy-4.2); cx.stroke(); }
   }
-  // giant veiny ear-dishes (pulse with hearGlow)
-  const g = L.hearGlow, pulse=0.5+Math.sin(time*10)*0.5;
-  const er=12+g*4*pulse;
-  for(const s of [-1,1]){
-    cx.fillStyle = `rgb(${115+g*140|0},${60+g*45|0},${135+g*120|0})`;
-    cx.beginPath(); cx.ellipse(s*14,-4,8+g*2,er,s*0.4,0,7); cx.fill();
-    // inner folds
-    cx.strokeStyle=`rgba(${200+g*55|0},120,${210},0.55)`; cx.lineWidth=1.4;
-    cx.beginPath(); cx.ellipse(s*14,-4,5,er*0.65,s*0.4,0,7); cx.stroke();
-    cx.beginPath(); cx.ellipse(s*14,-4,2.6,er*0.35,s*0.4,0,7); cx.stroke();
-    // veins
-    cx.strokeStyle=`rgba(255,${100+g*80|0},220,${0.25+g*0.5})`;
-    cx.beginPath(); cx.moveTo(s*8,-4); cx.lineTo(s*18,-4-er*0.6); cx.stroke();
-    cx.beginPath(); cx.moveTo(s*9,-1); cx.lineTo(s*19,4+er*0.4); cx.stroke();
-  }
-  // eyeless head, skin stretched over sockets
-  cx.fillStyle='#4a4148'; cx.beginPath(); cx.arc(0,-9,8,0,7); cx.fill();
+  // öne eğik gözsüz kafa
+  cx.fillStyle='#4a4148';
+  cx.beginPath(); cx.ellipse(0,-13,6.6,7.4,0,0,7); cx.fill();
   cx.fillStyle='#3a3238';
-  cx.beginPath(); cx.ellipse(-3,-11,2.6,1.6,0.3,0,7); cx.fill();
-  cx.beginPath(); cx.ellipse(3,-11,2.6,1.6,-0.3,0,7); cx.fill();
-  // gaping mouth when chasing
+  cx.beginPath(); cx.ellipse(-2.6,-15,2.2,1.3,0.3,0,7); cx.fill();
+  cx.beginPath(); cx.ellipse(2.6,-15,2.2,1.3,-0.3,0,7); cx.fill();
+  // dev kulak çanakları
+  const er=8.5+g*3.5*pulse;
+  for(const s2 of [-1,1]){
+    cx.fillStyle=`rgb(${115+g*140|0},${60+g*45|0},${135+g*120|0})`;
+    cx.beginPath(); cx.ellipse(s2*11,-13,5.6+g*1.5,er,s2*0.35,0,7); cx.fill();
+    cx.strokeStyle=`rgba(${200+g*55|0},120,210,0.5)`; cx.lineWidth=1.2;
+    cx.beginPath(); cx.ellipse(s2*11,-13,3.6,er*0.62,s2*0.35,0,7); cx.stroke();
+    cx.beginPath(); cx.ellipse(s2*11,-13,1.8,er*0.3,s2*0.35,0,7); cx.stroke();
+    cx.strokeStyle=`rgba(255,${100+g*80|0},220,${0.25+g*0.5})`;
+    cx.beginPath(); cx.moveTo(s2*6.6,-13); cx.lineTo(s2*14,-13-er*0.55); cx.stroke();
+    cx.beginPath(); cx.moveTo(s2*7,-11); cx.lineTo(s2*15,-9+er*0.3); cx.stroke();
+  }
+  // ağız
   if(L.state==='chase'){
-    const mo = 3+Math.sin(time*20)*2;
-    cx.fillStyle='#12060a'; cx.beginPath(); cx.ellipse(0,-5,3.4,mo,0,0,7); cx.fill();
+    const mo=2.6+Math.sin(time*20)*1.8;
+    cx.fillStyle='#12060a'; cx.beginPath(); cx.ellipse(0,-9.6,2.8,mo,0,0,7); cx.fill();
     cx.strokeStyle='#7c2b3a'; cx.lineWidth=1; cx.stroke();
   } else {
-    // stitched-looking mouth
-    cx.strokeStyle='#241c22'; cx.lineWidth=1.4;
-    cx.beginPath(); cx.moveTo(-3,-4.5); cx.lineTo(3,-4.5); cx.stroke();
-    for(let i=-2;i<=2;i++){ cx.beginPath(); cx.moveTo(i*1.5,-6); cx.lineTo(i*1.5,-3); cx.stroke(); }
+    cx.strokeStyle='#241c22'; cx.lineWidth=1.3;
+    cx.beginPath(); cx.moveTo(-2.6,-9.4); cx.lineTo(2.6,-9.4); cx.stroke();
+    for(let i=-1;i<=1;i++){ cx.beginPath(); cx.moveTo(i*1.7,-10.6); cx.lineTo(i*1.7,-8.2); cx.stroke(); }
   }
-  // drool
   const dr=(L.drool%3)/3;
   if(L.state!=='patrol'||dr>0.5){
-    cx.strokeStyle=`rgba(190,220,200,${0.5-dr*0.4})`; cx.lineWidth=1.2;
-    cx.beginPath(); cx.moveTo(1,-3); cx.lineTo(1,-3+dr*14); cx.stroke();
+    cx.strokeStyle=`rgba(190,220,200,${0.5-dr*0.4})`; cx.lineWidth=1.1;
+    cx.beginPath(); cx.moveTo(1,-8.6); cx.lineTo(1,-8.6+dr*12); cx.stroke();
   }
   cx.restore();
-  // halo + state icons
-  if(L.hearGlow>0.05){ cx.fillStyle=`rgba(210,120,255,${L.hearGlow*0.2})`;
+  if(g>0.05){ cx.fillStyle=`rgba(210,120,255,${g*0.2})`;
     cx.beginPath(); cx.arc(L.x,L.y,34,0,7); cx.fill(); }
-  if(L.scream>0){ // scream rings
-    cx.strokeStyle=`rgba(255,60,80,${L.scream})`; cx.lineWidth=2;
-    cx.beginPath(); cx.arc(L.x,L.y,(0.6-L.scream)*90+20,0,7); cx.stroke();
-  }
-  if(L.stun>0){ cx.fillStyle='#6fc7d9'; cx.font='14px Courier New'; cx.fillText('✶ ✶',L.x-12,L.y-30); }
-  if(L.state==='chase'){ cx.fillStyle='#ff4b3e'; cx.font='bold 20px Courier New'; cx.fillText('!',L.x-4,L.y-30); }
-  else if(L.state==='investigate'){ cx.fillStyle='#ffb03b'; cx.font='bold 16px Courier New'; cx.fillText('?',L.x-4,L.y-30); }
+  if(L.scream>0){ cx.strokeStyle=`rgba(255,60,80,${L.scream})`; cx.lineWidth=2;
+    cx.beginPath(); cx.arc(L.x,L.y,(0.6-L.scream)*90+20,0,7); cx.stroke(); }
+  if(L.stun>0){ cx.fillStyle='#6fc7d9'; cx.font='14px Courier New'; cx.fillText('✶ ✶',L.x-12,L.y-32); }
+  if(L.state==='chase'){ cx.fillStyle='#ff4b3e'; cx.font='bold 20px Courier New'; cx.fillText('!',L.x-4,L.y-32); }
+  else if(L.state==='investigate'){ cx.fillStyle='#ffb03b'; cx.font='bold 16px Courier New'; cx.fillText('?',L.x-4,L.y-32); }
 }
 
 function drawMaw(M){
@@ -2244,41 +2321,55 @@ function drawMaw(M){
     cx.fillStyle='rgba(150,50,90,0.4)'; cx.beginPath(); cx.ellipse(M.x,M.y,18,9,0,0,7); cx.fill();
     return;
   }
-  const tw = M.twitch>0 ? Math.sin(time*50)*0.15 : 0;
+  const tw=M.twitch>0?Math.sin(time*50)*0.12:0;
+  const step=Math.sin(time*3.2+M.hum);
+  const p=M.charge>0?0.5+Math.sin(time*30)*0.5:0.25+Math.sin(M.hum*4)*0.15;
   cx.save(); cx.translate(M.x,M.y); cx.rotate(M.dir+Math.PI/2+tw);
-  cx.fillStyle='rgba(0,0,0,0.5)'; cx.beginPath(); cx.ellipse(5,6,24,30,0,0,7); cx.fill();
-  cx.fillStyle = M.stun>0?'#232833':'#3d2b34';
-  cx.beginPath(); cx.ellipse(0,0,22,28,0,0,7); cx.fill();
-  // exposed rib flare
-  cx.strokeStyle='#1e161c'; cx.lineWidth=3;
+  cx.fillStyle='rgba(0,0,0,0.5)'; cx.beginPath(); cx.ellipse(5,6,26,32,0,0,7); cx.fill();
+  // güdük bacaklar
+  cx.fillStyle='#241a20';
+  cx.beginPath(); cx.ellipse(-8,24-step*2,5,7,0,0,7); cx.fill();
+  cx.beginPath(); cx.ellipse(8,24+step*2,5,7,0,0,7); cx.fill();
+  // devasa gövde + dev omuzlar
+  cx.fillStyle=M.stun>0?'#232833':'#3d2b34';
+  cx.beginPath(); cx.ellipse(0,2,20,26,0,0,7); cx.fill();
+  cx.beginPath(); cx.arc(-17,-10,7,0,7); cx.arc(17,-10,7,0,7); cx.fill();
+  // dışa açılmış kaburgalar
+  cx.strokeStyle='#1e161c'; cx.lineWidth=2.6;
   for(let i=-2;i<=2;i++){
-    cx.beginPath(); cx.moveTo(-16,i*7); cx.quadraticCurveTo(0,i*7+3,16,i*7); cx.stroke();
+    cx.beginPath(); cx.moveTo(-16,i*6.5+2); cx.quadraticCurveTo(0,i*6.5+5,16,i*6.5+2); cx.stroke();
   }
-  // chest membrane — pulses, glows violently on charge
-  const p = M.charge>0 ? 0.5+Math.sin(time*30)*0.5 : 0.25+Math.sin(M.hum*4)*0.15;
-  const memG = M.charge>0 ? 1 : 0.4;
+  // membran
+  const memG=M.charge>0?1:0.4;
   cx.fillStyle=`rgba(255,${90+p*40|0},170,${0.35+p*0.55*memG})`;
-  cx.beginPath(); cx.ellipse(0,2,12+p*6,16+p*7,0,0,7); cx.fill();
-  // membrane veins
-  cx.strokeStyle=`rgba(255,200,230,${0.3+p*0.4})`; cx.lineWidth=1.2;
-  cx.beginPath(); cx.moveTo(0,-12); cx.lineTo(0,16); cx.stroke();
-  cx.beginPath(); cx.moveTo(-8,-6); cx.lineTo(8,10); cx.stroke();
-  cx.beginPath(); cx.moveTo(8,-6); cx.lineTo(-8,10); cx.stroke();
-  // three throat lumps
+  cx.beginPath(); cx.ellipse(0,4,11+p*6,15+p*7,0,0,7); cx.fill();
+  cx.strokeStyle=`rgba(255,200,230,${0.3+p*0.4})`; cx.lineWidth=1.1;
+  cx.beginPath(); cx.moveTo(0,-9); cx.lineTo(0,17); cx.stroke();
+  cx.beginPath(); cx.moveTo(-7,-3); cx.lineTo(7,11); cx.stroke();
+  cx.beginPath(); cx.moveTo(7,-3); cx.lineTo(-7,11); cx.stroke();
+  // yere sürten kalın kollar + yumruklar
+  cx.strokeStyle='#31232b'; cx.lineWidth=8; cx.lineCap='round';
+  cx.beginPath(); cx.moveTo(-17,-10); cx.lineTo(-26,2+step*2); cx.lineTo(-27,14); cx.stroke();
+  cx.beginPath(); cx.moveTo(17,-10); cx.lineTo(26,2-step*2); cx.lineTo(27,14); cx.stroke();
+  cx.fillStyle='#241a20';
+  cx.beginPath(); cx.arc(-27,16,4.6,0,7); cx.fill();
+  cx.beginPath(); cx.arc(27,16,4.6,0,7); cx.fill();
+  // üç gırtlak
   cx.fillStyle='#4d3540';
-  for(const s of [-6,0,6]){ cx.beginPath(); cx.arc(s,-16,4+Math.sin(M.hum*6+s)*1.2,0,7); cx.fill(); }
-  // small collapsed head, ears sunken
-  cx.fillStyle='#2e2229'; cx.beginPath(); cx.arc(0,-22,8,0,7); cx.fill();
+  for(const s2 of [-6,0,6]){ cx.beginPath(); cx.arc(s2,-16,3.8+Math.sin(M.hum*6+s2)*1.1,0,7); cx.fill(); }
+  // küçük çökük kafa
+  cx.fillStyle='#2e2229'; cx.beginPath(); cx.arc(0,-23,7,0,7); cx.fill();
   cx.fillStyle='#1a1216';
-  cx.beginPath(); cx.ellipse(-5,-22,2,3.4,0,0,7); cx.fill();
-  cx.beginPath(); cx.ellipse(5,-22,2,3.4,0,0,7); cx.fill();
+  cx.beginPath(); cx.ellipse(-4.4,-23,1.8,3,0,0,7); cx.fill();
+  cx.beginPath(); cx.ellipse(4.4,-23,1.8,3,0,0,7); cx.fill();
+  cx.strokeStyle='#171017'; cx.lineWidth=1.2;
+  cx.beginPath(); cx.moveTo(-3,-19.6); cx.lineTo(3,-19.6); cx.stroke();
   cx.restore();
-  // hum ring
   cx.strokeStyle=`rgba(255,120,180,${0.12+Math.sin(M.hum*4)*0.08})`;
-  cx.lineWidth=1.5; cx.beginPath(); cx.arc(M.x,M.y,40+Math.sin(M.hum*4)*8,0,7); cx.stroke();
+  cx.lineWidth=1.5; cx.beginPath(); cx.arc(M.x,M.y,42+Math.sin(M.hum*4)*8,0,7); cx.stroke();
   if(M.charge>0){ cx.fillStyle='#ff4b3e'; cx.font='bold 13px Courier New';
-    cx.fillText('▶ GÖĞÜS ZARI AÇIK — VUR! ◀',M.x-88,M.y-48); }
-  if(M.stun>0){ cx.fillStyle='#6fc7d9'; cx.font='14px Courier New'; cx.fillText('✶ ✶ ✶',M.x-18,M.y-44); }
+    cx.fillText('▶ GÖĞÜS ZARI AÇIK — VUR! ◀',M.x-88,M.y-52); }
+  if(M.stun>0){ cx.fillStyle='#6fc7d9'; cx.font='14px Courier New'; cx.fillText('✶ ✶ ✶',M.x-18,M.y-48); }
 }
 
 function drawCrawler(Cw){
@@ -2286,34 +2377,47 @@ function drawCrawler(Cw){
     cx.fillStyle='#141a17'; cx.beginPath(); cx.ellipse(Cw.x,Cw.y,15,8,Cw.dir,0,7); cx.fill();
     return;
   }
+  const active=Cw.state==='lunge'||Cw.state==='hunt'||Cw.state==='wake';
+  const crawl=active?Math.sin(time*20):Math.sin(Cw.breathT*2)*0.3;
+  const br=Cw.state==='sleep'?Math.sin(Cw.breathT*2)*1.2:0;
   cx.save(); cx.translate(Cw.x,Cw.y); cx.rotate(Cw.dir+Math.PI/2);
-  cx.fillStyle='rgba(0,0,0,0.45)'; cx.beginPath(); cx.ellipse(3,3,13,16,0,0,7); cx.fill();
-  // low, spider-like crawling body
-  const br = Cw.state==='sleep' ? Math.sin(Cw.breathT*2)*1.5 : 0;
-  cx.fillStyle = Cw.stun>0?'#232833': Cw.state==='sleep'?'#2c2830':'#3a2f36';
-  cx.beginPath(); cx.ellipse(0,0,10+br*0.5,14+br,0,0,7); cx.fill();
-  // 6 splayed limbs
-  cx.strokeStyle='#241c22'; cx.lineWidth=3; cx.lineCap='round';
-  const crawl = Cw.state==='lunge'||Cw.state==='hunt' ? Math.sin(time*22)*4 : 0;
-  for(const [sx,sy,ex,ey] of [[-8,-8,-17,-13],[8,-8,17,-13],[-9,0,-19,2],[9,0,19,2],[-7,8,-15,14],[7,8,15,14]]){
-    cx.beginPath(); cx.moveTo(sx,sy); cx.lineTo(ex+(ex>0?crawl:-crawl)*0.4,ey+crawl*0.3); cx.stroke();
+  cx.fillStyle='rgba(0,0,0,0.45)'; cx.beginPath(); cx.ellipse(3,3,12,15,0,0,7); cx.fill();
+  // dört ayak üstünde bir deri bir kemik insan
+  cx.strokeStyle='#241c22'; cx.lineWidth=3.4; cx.lineCap='round';
+  cx.beginPath(); cx.moveTo(-3.5,7); cx.lineTo(-9,11+crawl*2.5); cx.lineTo(-6.5,17+crawl*3); cx.stroke();
+  cx.beginPath(); cx.moveTo(3.5,7); cx.lineTo(9,11-crawl*2.5); cx.lineTo(6.5,17-crawl*3); cx.stroke();
+  cx.beginPath(); cx.moveTo(-4.5,-7); cx.lineTo(-8.5,-13-crawl*3); cx.stroke();
+  cx.beginPath(); cx.moveTo(4.5,-7); cx.lineTo(8.5,-13+crawl*3); cx.stroke();
+  // kemikli parmaklar
+  cx.strokeStyle='#171116'; cx.lineWidth=1.2;
+  for(const s2 of [-1,1]){
+    const hx=s2*8.5, hy=-13-(s2<0?crawl*3:-crawl*3);
+    for(let f=-1;f<=1;f++){ cx.beginPath(); cx.moveTo(hx,hy); cx.lineTo(hx+f*2,hy-3.4); cx.stroke(); }
   }
-  // head is mostly a MOUTH — jaw splits open when hunting
-  cx.fillStyle='#463840'; cx.beginPath(); cx.arc(0,-10,7,0,7); cx.fill();
-  if(Cw.state==='lunge'||Cw.state==='hunt'||Cw.state==='wake'){
-    const jaw=4+Math.sin(time*26)*2.5;
+  // sıska gövde + omurga
+  cx.fillStyle=Cw.stun>0?'#232833':Cw.state==='sleep'?'#2c2830':'#39303a';
+  cx.beginPath(); cx.ellipse(0,0,6.4+br*0.4,12+br,0,0,7); cx.fill();
+  cx.fillStyle='#4b3f4a';
+  for(let i=0;i<5;i++){ cx.beginPath(); cx.arc(0,8-i*3.6,1.4,0,7); cx.fill(); }
+  cx.strokeStyle='rgba(20,14,20,0.6)'; cx.lineWidth=1;
+  cx.beginPath(); cx.moveTo(-5,-1); cx.lineTo(-2,1); cx.stroke();
+  cx.beginPath(); cx.moveTo(5,-1); cx.lineTo(2,1); cx.stroke();
+  // kafa: yarılan çene
+  cx.fillStyle='#463840';
+  cx.beginPath(); cx.ellipse(0,-11.5,5.4,6,0,0,7); cx.fill();
+  if(active){
+    const jaw=3.6+Math.sin(time*26)*2.2;
     cx.fillStyle='#0e0508';
-    cx.beginPath(); cx.ellipse(0,-9,4.5,jaw,0,0,7); cx.fill();
+    cx.beginPath(); cx.ellipse(0,-11,3.6,jaw,0,0,7); cx.fill();
     cx.strokeStyle='#87313f'; cx.lineWidth=1; cx.stroke();
-    // needle teeth
     cx.strokeStyle='#cfc7bb'; cx.lineWidth=0.8;
     for(let i=-2;i<=2;i++){
-      cx.beginPath(); cx.moveTo(i*1.6,-9-jaw*0.8); cx.lineTo(i*1.6,-9-jaw*0.8+2.4); cx.stroke();
-      cx.beginPath(); cx.moveTo(i*1.6,-9+jaw*0.8); cx.lineTo(i*1.6,-9+jaw*0.8-2.4); cx.stroke();
+      cx.beginPath(); cx.moveTo(i*1.4,-11-jaw*0.75); cx.lineTo(i*1.4,-11-jaw*0.75+2); cx.stroke();
+      cx.beginPath(); cx.moveTo(i*1.4,-11+jaw*0.75); cx.lineTo(i*1.4,-11+jaw*0.75-2); cx.stroke();
     }
   } else {
-    cx.strokeStyle='#241c22'; cx.lineWidth=1.2;
-    cx.beginPath(); cx.moveTo(-3,-9); cx.lineTo(3,-9); cx.stroke();
+    cx.strokeStyle='#241c22'; cx.lineWidth=1.1;
+    cx.beginPath(); cx.moveTo(-2.4,-10.4); cx.lineTo(2.4,-10.4); cx.stroke();
   }
   cx.restore();
   if(Cw.hearGlow>0.05){ cx.fillStyle=`rgba(255,120,140,${Cw.hearGlow*0.2})`;
@@ -2522,15 +2626,7 @@ function render(){
   for(const M of maws) if(vis(M.x,M.y,80)) drawMaw(M);
 
   /* PLAYER */
-  cx.save(); cx.translate(player.x,player.y); cx.rotate(player.dir+Math.PI/2);
-  cx.fillStyle='rgba(0,0,0,0.4)'; cx.beginPath(); cx.ellipse(3,4,12,15,0,0,7); cx.fill();
-  cx.fillStyle=sneak?'#33402e':'#455239'; cx.beginPath(); cx.ellipse(0,0,11,15,0,0,7); cx.fill();
-  cx.fillStyle='#2c2620'; cx.beginPath(); cx.arc(0,-6,7,0,7); cx.fill();
-  cx.strokeStyle='#111'; cx.lineWidth=3; cx.beginPath(); cx.arc(0,-6,8,Math.PI*0.8,Math.PI*2.2); cx.stroke();
-  cx.strokeStyle='#8a8f93'; cx.lineWidth=3;
-  cx.beginPath(); cx.moveTo(8,2); cx.lineTo(8,-26); cx.stroke();
-  cx.fillStyle='#6fc7d9'; cx.beginPath(); cx.arc(8,-27,3,0,7); cx.fill();
-  cx.restore();
+  drawPlayer();
 
   cx.restore();
 
