@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SESSİZ FREKANS — Silent Frequency</title>
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 <div id="wrap">
@@ -123,6 +123,25 @@
     </div>
   </div>
 
+  <!-- İLK AÇILIŞ: PARLAKLIK KALİBRASYONU -->
+  <div id="calib" class="overlay hidden" style="background:#000; z-index:60;">
+    <div style="text-align:center; max-width:560px; width:92%;">
+      <img id="calibLogo" src="assets/logo.png" alt="Sessiz Frekans">
+      <div class="calibtitle">SESSİZ FREKANS</div>
+      <div class="calibtext">
+        Bu oyun karanlıkta geçer.<br>
+        Yukarıdaki logoyu <b>ÇOK AZ görene kadar</b> parlaklığı kısın.
+      </div>
+      <div class="setrow" style="max-width:380px; margin:18px auto;">
+        <label>PARLAKLIK</label>
+        <input type="range" id="calibRange" min="50" max="180" value="100">
+        <span id="calibVal">%100</span>
+      </div>
+      <button id="btnCalibDone">HAZIR — YAYINA GİR</button>
+      <div class="note">Bu ayarı sonra P menüsü → Ayarlar'dan değiştirebilirsin.</div>
+    </div>
+  </div>
+
   <!-- TITLE -->
   <div id="title" class="overlay">
     <div class="panel">
@@ -174,6 +193,6 @@
     </div>
   </div>
 </div>
-<script src="game.js?v=14"></script>
+<script src="game.js?v=15"></script>
 </body>
 </html>

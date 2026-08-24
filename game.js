@@ -1352,8 +1352,9 @@ function startMazePhase(){
   cam={ x:0, y:0 };
   // çıkış alt-sağda
   door={ x:2080, y:1580, w:80, h:60 };
-  // PEŞİNDEKİ ŞEY: yavaş ama asla durmayan takipçi
-  R.hunter={ x:-160, y:110, speed:118, alive:true };
+  // PEŞİNDEKİ ŞEY: oyuncunun İZİNİ SÜRER — duvarlardan geçemez
+  R.hunter={ x:60, y:110, r:24, speed:132, alive:true, delay:3.5 };
+  R.trail=[{x:100,y:110}]; R.trailT=0; R.huntIdx=0;
   R.mazeT=0;
   // basınç dalgası: arkadan gelen hava (görsel gerilim)
   R.pressure=0;
@@ -1417,26 +1418,55 @@ function updateMaze(dt){
   footT-=dt;
   if(moving&&footT<=0){ footT=running?0.24:0.4; AU.step(running,true); }
 
-  /* TAKİPÇİ: duvarları umursamaz (kanal dışından, sacları eze eze geliyor)
-     hızı oyuncu hızına yakın — durursan yakalanırsın */
+  /* İZ KAYDI: oyuncunun geçtiği yol (takipçi bu yolu izler → duvardan GEÇEMEZ) */
+  R.trailT-=dt;
+  if(R.trailT<=0){
+    R.trailT=0.12;
+    const last=R.trail[R.trail.length-1];
+    if(!last || Math.hypot(player.x-last.x,player.y-last.y)>14)
+      R.trail.push({x:player.x,y:player.y});
+    if(R.trail.length>600){ R.trail.splice(0, R.trail.length-600); R.huntIdx=Math.max(0,R.huntIdx-(R.trail.length-600)); }
+  }
+
+  /* TAKİPÇİ: oyuncunun izini sürer — koridorlarda senin yolundan gelir */
   const Hn=R.hunter;
   if(Hn.alive){
-    const a=ang(Hn,player);
-    // lastik bant: uzaksa hızlanır, yakınsa sabit
-    const d=dist(Hn,player);
-    const sp = Hn.speed + Math.max(0,(d-420))*0.25;
-    Hn.x+=Math.cos(a)*sp*dt; Hn.y+=Math.sin(a)*sp*dt;
-    // metal ezilme sesleri
-    if(Math.random()<dt*2.2){ AU.blip(rand(60,110),0.15,0.12,'square'); if(d<300) shake=Math.max(shake,0.25); }
-    if(d<220 && Math.random()<dt*1.5) AU.whisper();
-    if(d<34 && !cheats.god && !cheats.ghost) return kill('hunter');
+    if(Hn.delay>0){ Hn.delay-=dt; } // başlangıç nefes payı
+    else {
+      const d=dist(Hn,player);
+      // lastik bant: geride kaldıysa hızlanır
+      const sp=(Hn.speed + Math.max(0,(d-380))*0.35)*dt;
+      let remaining=sp;
+      // iz üzerindeki noktaları sırayla tüket
+      let guard=0;
+      while(remaining>0 && R.huntIdx<R.trail.length && guard++<40){
+        const t=R.trail[R.huntIdx];
+        const dd=Math.hypot(t.x-Hn.x,t.y-Hn.y);
+        if(dd<=remaining){ Hn.x=t.x; Hn.y=t.y; remaining-=dd; R.huntIdx++; }
+        else {
+          const a2=Math.atan2(t.y-Hn.y,t.x-Hn.x);
+          Hn.x+=Math.cos(a2)*remaining; Hn.y+=Math.sin(a2)*remaining;
+          remaining=0;
+        }
+      }
+      // iz bittiyse (oyuncuya çok yakın) düz hamle — ama duvar çarpışmalı!
+      if(R.huntIdx>=R.trail.length && remaining>0){
+        const a2=ang(Hn,player);
+        Hn.x+=Math.cos(a2)*remaining; Hn.y+=Math.sin(a2)*remaining;
+        collide(Hn); // duvardan geçemez
+      }
+      // metal ezilme sesleri
+      if(Math.random()<dt*2.2){ AU.blip(rand(60,110),0.15,0.12,'square'); if(d<300) shake=Math.max(shake,0.25); }
+      if(d<220 && Math.random()<dt*1.5) AU.whisper();
+      if(d<36 && !cheats.god && !cheats.ghost) return kill('hunter');
+    }
   }
 
   /* basınç dalgası görseli için */
   R.pressure=Math.min(1,R.mazeT/8);
 
-  /* çıkışa vardın mı? */
-  if(Math.abs(player.x-door.x-40)<70 && Math.abs(player.y-door.y-30)<70){
+  /* çıkışa vardın mı? (geniş algı alanı) */
+  if(Math.abs(player.x-(door.x+40))<95 && Math.abs(player.y-(door.y+30))<95){
     return winGame();
   }
 
@@ -1468,7 +1498,10 @@ function renderMaze(){
     cx.strokeStyle='#0b0f13'; cx.lineWidth=2; cx.strokeRect(w.x,w.y,w.w,w.h);
   }
 
-  /* çıkış: yeşil ışıklı kapak */
+  /* çıkış: yeşil ışıklı kapak — parlak hale */
+  const dg2=cx.createRadialGradient(door.x+40,door.y+30,6,door.x+40,door.y+30,130);
+  dg2.addColorStop(0,'rgba(77,189,110,0.35)'); dg2.addColorStop(1,'rgba(77,189,110,0)');
+  cx.fillStyle=dg2; cx.beginPath(); cx.arc(door.x+40,door.y+30,130,0,7); cx.fill();
   cx.fillStyle='#12241a'; cx.fillRect(door.x,door.y,door.w,door.h);
   cx.strokeStyle=`rgba(77,189,110,${0.6+Math.sin(time*6)*0.3})`;
   cx.lineWidth=3; cx.strokeRect(door.x,door.y,door.w,door.h);
@@ -1538,6 +1571,23 @@ function renderMaze(){
     const p=1-d/420;
     cx.fillStyle=`rgba(160,15,10,${p*0.16+Math.sin(time*10)*p*0.05})`;
     cx.fillRect(0,0,W,H);
+  }
+
+  /* ÇIKIŞ PUSULASI: ekran kenarında yeşil ok — kaybolmak yok */
+  {
+    const exd=door.x+40-cam.x, eyd=door.y+30-cam.y;
+    if(exd<-20||exd>W+20||eyd<-20||eyd>H+20){
+      const pxs=player.x-cam.x, pys=player.y-cam.y;
+      const aa=Math.atan2(eyd-pys, exd-pxs);
+      const ox=pxs+Math.cos(aa)*120, oy=pys+Math.sin(aa)*120;
+      cx.save(); cx.translate(ox,oy); cx.rotate(aa);
+      cx.fillStyle=`rgba(77,189,110,${0.55+Math.sin(time*5)*0.25})`;
+      cx.beginPath(); cx.moveTo(16,0); cx.lineTo(-6,-9); cx.lineTo(-2,0); cx.lineTo(-6,9);
+      cx.closePath(); cx.fill();
+      cx.restore();
+      cx.fillStyle='rgba(143,217,168,0.6)'; cx.font='10px Courier New';
+      cx.fillText('ÇIKIŞ', ox-14, oy-14);
+    }
   }
   postProcess();
 }
@@ -2723,6 +2773,36 @@ $('btnSetReset').onclick=()=>{
   AU.blip(900,0.1,0.1);
 };
 refreshSettingsUI(); applySettings();
+
+/* ============================================================
+   İLK AÇILIŞ: PARLAKLIK KALİBRASYONU (logo ile)
+   ============================================================ */
+(function initCalib(){
+  let done=false;
+  try{ done = localStorage.getItem('sf_calibrated')==='1'; }catch(e){}
+  if(done) return;
+  const cal=$('calib');
+  cal.classList.remove('hidden');
+  $('title').classList.add('hidden');
+  const rng=$('calibRange'), val=$('calibVal'), logo=$('calibLogo');
+  rng.value=settings.bright;
+  const upd=()=>{
+    settings.bright=+rng.value;
+    val.textContent='%'+settings.bright;
+    // logo önizlemesi: parlaklık ayarını logoya birebir uygula
+    logo.style.filter=`brightness(${(settings.bright/100)*0.5})`;
+    applySettings(); saveSettings();
+  };
+  upd();
+  rng.addEventListener('input',upd);
+  rng.addEventListener('keydown',e=>e.stopPropagation());
+  $('btnCalibDone').onclick=()=>{
+    try{ localStorage.setItem('sf_calibrated','1'); }catch(e){}
+    cal.classList.add('hidden');
+    $('title').classList.remove('hidden');
+    refreshSettingsUI();
+  };
+})();
 $('btnRestartCh').onclick=()=>{ hideAll(); if(chapter===2) startChapter2(); else startChapter1(); };
 $('btnMainMenu').onclick=()=>{ hideAll(); state='title'; $('title').classList.remove('hidden'); };
 
