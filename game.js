@@ -693,7 +693,7 @@ function collide(e){
 function update(dt){
   time+=dt;
   if(shake>0) shake=Math.max(0,shake-dt*3);
-  if(chapter===3){ updateCh3(dt); return; }
+  if(chapter>=3){ updateCh3(dt); return; }
   if(markedT>0) markedT-=dt;
   document.getElementById('marked').classList.toggle('hidden', markedT<=0);
 
@@ -1091,7 +1091,7 @@ function updateCh3(dt){
   R.hourT+=dt;
   if(R.hourT>=35){ R.hourT=0; R.hour++;
     AU.blip(660,0.3,0.12,'sine');
-    if(R.hour>=3) return startVentPhase();
+    if(R.hour>=3) return startChapter4();
   }
 
   // güç tüketimi (3 saatlik kısa gece için dengeli — pasif toplam ~%8)
@@ -1204,6 +1204,18 @@ function updateCh3(dt){
    Görev: 3 fanı tamir et (E basılı tut). Kanallardan yaratıklar
    gelir — fareyle fener tutup onları geri püskürt!
    ============================================================ */
+function startChapter4(){
+  // BÖLÜM 4 — HAVALANDIRMA (ayrı bölüm olarak)
+  AU.init();
+  if(!ch3){ buildChapter3(); }  // ch3 yapısı yoksa kur (menüden direkt gelindi)
+  chapter=4;
+  document.getElementById('btnCh4').classList.remove('hidden');
+  document.getElementById('hud').classList.add('hidden');
+  hideAll(); state='play';
+  startVentPhase();
+  setObjective('BÖLÜM 4 — HAVALANDIRMA: 3 FANI TAMİR ET');
+  setHint('FARE=fener yönü, SOL TIK=ışık, fan başında E basılı tut',6);
+}
 function startVentPhase(){
   const R=ch3;
   R.phase='vent';
@@ -1288,7 +1300,7 @@ function updateVent(dt){
   /* --- hepsi bitti mi? → LABİRENT KAÇIŞI --- */
   if(!R.ventDone && R.fans.every(f=>f.done)){
     R.ventDone=true;
-    setTimeout(()=>{ if(state==='play') startMazePhase(); }, 2500);
+    setTimeout(()=>{ if(state==='play') startChapter5(); }, 2500);
   }
   return false;
 }
@@ -1297,6 +1309,15 @@ function updateVent(dt){
    VENT LABİRENTİ — fanlar dönünce kanallara giriyorsun:
    karanlık, dar, arkadan hava basıncı + peşindeki ŞEY
    ============================================================ */
+function startChapter5(){
+  // BÖLÜM 5 — VENT LABİRENTİ KAÇIŞI (ayrı bölüm)
+  AU.init();
+  if(!ch3){ buildChapter3(); }
+  chapter=5;
+  document.getElementById('btnCh5').classList.remove('hidden');
+  hideAll(); state='play';
+  startMazePhase();
+}
 function startMazePhase(){
   const R=ch3;
   R.phase='maze';
@@ -1818,7 +1839,7 @@ function renderCh3Room(){
   cx.fillStyle='#ffb03b'; cx.font='bold 26px Courier New';
   cx.fillText(`0${R.hour}:00`, W-130, 50);
   cx.fillStyle='#7d8f82'; cx.font='11px Courier New';
-  cx.fillText('03:00\'TE HAVALANDIRMAYA GEÇ', W-230, 70);
+  cx.fillText('03:00\'TE BÖLÜM 4 BAŞLAR', W-210, 70);
   cx.fillText('[S] kamera  [W] kamera değiştir', W/2-110, H-16);
   if(R.power<=0){
     cx.fillStyle=`rgba(0,0,0,${0.5+Math.sin(time*2)*0.2})`; cx.fillRect(0,0,W,H);
@@ -2070,14 +2091,14 @@ function drawCrawler(Cw){
 }
 
 function render(){
-  if(chapter===3 && ch3 && ch3.phase==='room'){ renderCh3Room(); return; }
-  if(chapter===3 && ch3 && ch3.phase==='vent'){ renderVent(); return; }
-  if(chapter===3 && ch3 && ch3.phase==='maze'){ renderMaze(); return; }
+  if(chapter>=3 && ch3 && ch3.phase==='room'){ renderCh3Room(); return; }
+  if(chapter>=3 && ch3 && ch3.phase==='vent'){ renderVent(); return; }
+  if(chapter>=3 && ch3 && ch3.phase==='maze'){ renderMaze(); return; }
   const shakeMul = settings.shake/100;
   const sx = shake>0 ? rand(-shake,shake)*8*shakeMul : 0;
   const sy = shake>0 ? rand(-shake,shake)*8*shakeMul : 0;
 
-  if(chapter===3){ // kaçış kamerası: oyuncuyu solda tut
+  if(chapter>=3){ // kaçış kamerası: oyuncuyu solda tut
     cam.x = clamp(player.x-W*0.35, 0, WORLD.w-W);
     cam.y = clamp(player.y-H/2, 0, Math.max(0,WORLD.h-H));
   }
@@ -2085,7 +2106,7 @@ function render(){
 
   if(groundReady) cx.drawImage(ground,0,0);
 
-  if(chapter===3){
+  if(chapter>=3){
     // koridor duvarları
     for(const w of walls){
       cx.fillStyle='#151b21'; cx.fillRect(w.x,w.y,w.w,w.h);
@@ -2456,7 +2477,7 @@ function winGame(){
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('finalbar').classList.add('hidden');
   document.getElementById('win').classList.remove('hidden');
-  if(chapter===3){
+  if(chapter>=3){
     AU.stopMusic(3);
     AU.blip(87.9*4,1.5,0.2,'sine');
     document.getElementById('winText').innerHTML =
@@ -2739,6 +2760,8 @@ $('admSkip').onclick=()=>{
   hideAll();
   if(chapter===1){ startChapter2Card(); }
   else if(chapter===2){ startChapter3TitleDrop(); }
+  else if(chapter===3){ startChapter4(); }
+  else if(chapter===4){ startChapter5(); }
   else { winGame(); }
 };
 $('admObjective').onclick=()=>{
@@ -2749,7 +2772,7 @@ $('admObjective').onclick=()=>{
 };
 $('admFull').onclick=()=>{
   batteries=9; orbCount=9; torchCharge=100; stamina=100; tired=false; markedT=0;
-  if(chapter===3 && ch3){ ch3.power=100; ch3.blackoutT=0; }
+  if(chapter>=3 && ch3){ ch3.power=100; ch3.blackoutT=0; if(ch3.flash!==undefined) ch3.flash=100; }
   setHint('Her şey fulllendi: 9 akü, 9 küre, fener %100, stamina %100, güç %100',4);
   AU.blip(1000,0.2,0.15); flashBtn('admFull');
 };
@@ -2758,14 +2781,14 @@ $('admKillAll').onclick=()=>{
   for(const L of listeners) if(L.alive){L.alive=false;n++;}
   for(const M of maws) if(M.alive){M.alive=false;n++;}
   for(const Cw of crawlers) if(Cw.alive){Cw.alive=false;n++;}
-  if(chapter===3 && ch3 && ch3.phase==='room'){
+  if(chapter>=3 && ch3 && ch3.phase==='room'){
     for(const S of stalkers){ S.atDoor=false; S.pos=0; S.waitT=999; S.killT=0; }
     watcher.moveT=999; watcher.cam=0; ch3.watcherWinT=0; n+=3;
   }
-  if(chapter===3 && ch3 && ch3.phase==='vent'){
+  if(chapter>=3 && ch3 && ch3.phase==='vent'){
     n+=ch3.creeps.length; ch3.creeps=[]; ch3.spawnT=999;
   }
-  if(chapter===3 && ch3 && ch3.phase==='maze' && ch3.hunter && ch3.hunter.alive){
+  if(chapter>=3 && ch3 && ch3.phase==='maze' && ch3.hunter && ch3.hunter.alive){
     ch3.hunter.alive=false; n++;
   }
   setHint(`${n} düşman etkisiz hale getirildi.`,4);
@@ -2810,13 +2833,17 @@ function updateCheatBadge(){
 document.getElementById('btnStart').onclick=()=>{ AU.init(); AU.stopMusic(0.5); state='intro'; showCards(introPages, startChapter1); };
 document.getElementById('btnCh2').onclick=()=>{ AU.init(); AU.stopMusic(0.5); startChapter2(); };
 document.getElementById('btnCh3').onclick=()=>{ AU.init(); startChapter3TitleDrop(); };
+document.getElementById('btnCh4').onclick=()=>{ startChapter4(); };
+document.getElementById('btnCh5').onclick=()=>{ startChapter5(); };
 document.getElementById('btnNext').onclick=()=>{
   introIdx++;
   if(introIdx>=introSet.pages.length) endCards(); else typePage();
 };
 document.getElementById('skipIntro').onclick=()=>endCards();
 document.getElementById('btnRetry').onclick=()=>{ // checkpoint: restart current chapter
-  if(chapter===3) startChapter3();
+  if(chapter===5) startChapter5();
+  else if(chapter===4) startChapter4();
+  else if(chapter===3) startChapter3();
   else if(chapter===2) startChapter2();
   else startChapter1();
 };
