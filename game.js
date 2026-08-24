@@ -554,6 +554,92 @@ function buildGroundCorridor(){
   groundReady=true;
 }
 
+function buildChapter6(){
+  chapter=6; WORLD={w:2400,h:2200};
+  baseInit();
+  fuseCount=0; batteries=5; orbCount=3;
+  player = { x:1200, y:290, r:14, dir:Math.PI/2, moving:false, _atk:false };
+  cam = { x:player.x-W/2, y:player.y-H/2 };
+  trees=[];
+  /* Radyo Poyraz binası: Kanal-9 iç düzeninin aynası — ama artık İŞGAL ALTINDA */
+  walls = [
+    {x:80,y:80,w:2240,h:40},{x:80,y:2120,w:960,h:40},{x:1360,y:2120,w:960,h:40},
+    {x:80,y:80,w:40,h:2080},{x:2280,y:80,w:40,h:2080},
+    {x:80,y:1750,w:800,h:36},{x:1520,y:1750,w:800,h:36},
+    {x:840,y:1300,w:36,h:490},{x:1520,y:1300,w:36,h:490},
+    {x:120,y:1300,w:500,h:36},{x:1780,y:1300,w:540,h:36},
+    {x:120,y:900,w:720,h:36},{x:1560,y:900,w:760,h:36},
+    {x:840,y:900,w:36,h:250},{x:1520,y:900,w:36,h:250},
+    {x:400,y:400,w:36,h:340},{x:400,y:400,w:520,h:36},
+    {x:1480,y:400,w:520,h:36},{x:1960,y:400,w:36,h:340},
+    {x:900,y:200,w:36,h:340},{x:1460,y:200,w:36,h:340},
+  ];
+  glassPiles = [
+    {x:1180,y:1600,r:46},{x:700,y:1080,r:44},{x:1700,y:1080,r:44},{x:1180,y:700,r:50},
+  ];
+  radios = [
+    {x:300, y:1950, on:false},{x:2100,y:1950,on:false},
+    {x:200, y:1100, on:false},{x:2200,y:1100,on:false},
+    {x:700, y:480,  on:false},{x:1800,y:480, on:false},
+    {x:1180,y:1400, on:false},
+  ];
+  /* 3 ANAHTAR: stüdyo anahtarı, jeneratör anahtarı, pikap kontağı */
+  fuses = [
+    {x:250, y:520, got:false},{x:2150,y:520,got:false},{x:1180,y:1950,got:false},
+  ];
+  pickups = [
+    {x:500,y:1950,type:'bat'},{x:1900,y:1500,type:'bat'},{x:300,y:700,type:'bat'},
+    {x:2050,y:700,type:'orb'},{x:1180,y:1900,type:'orb'},{x:640,y:1180,type:'bat'},
+  ];
+  notes = [
+    {x:980,y:340, got:false, text:
+`Kendi el yazın — yayın masana bırakmışsın. Ama sen yazmadın.
+
+"HOŞ GELDİN GECE KUŞU.
+BİR YIL BOYUNCA HER GECE SENİN KAYITLARINI ÇALDIK.
+SESİN BİZE YOLU GÖSTERDİ.
+
+Artık bu FREKANSIN EVİ bizim."`},
+    {x:170,y:1500, got:false, text:
+`Belediye tebligatı — kapıya yapıştırılmış, tarih: 11 ay önce
+
+"İşbu bina, D. Aksoy'un kaybolmasının ardından
+kayyuma devredilmiştir. İçeride izinsiz ikamet
+edenlerin tahliyesi..."
+
+Altına kazınmış: TAHLİYE EDİLEMEZ. BİZ SEÇİLDİK.`},
+    {x:2230,y:1500, got:false, text:
+`Elif'in telsiz notu — cebinde buldun
+
+"Deniz — istasyondan çıktığında zaman sana tuhaf
+gelecek. 87.9'un alanında 5 saat geçirdin.
+Dışarıda... daha fazlası geçti. Üzgünüm.
+
+Dinleyenler'i duyanlar sadece mutantlar değildi.
+SAĞLAM kalanlar da vardı. Onlar artık frekansa TAPIYOR.
+Ve senin sesin, onların ezanı.
+
+Pikabın hâlâ çalışıyor. Anahtarları bul. Bana gel."`},
+  ];
+  /* YERLİLER: görüşlü insan tarikatçılar + 1 Ağız (frekans "azizleri" onu besliyor) */
+  listeners = [
+    makeListener(400,1550,[[300,1550],[700,1550],[500,1650]]),
+    makeListener(2000,1550,[[1900,1550],[2200,1650],[2000,1450]]),
+    makeListener(1180,1150,[[1000,1150],[1350,1150],[1180,1250]]),
+    makeListener(600,1080,[[300,1080],[750,1080]],{fast:true}),
+    makeListener(1780,1080,[[1650,1080],[2150,1080]],{fast:true}),
+    makeListener(700,620,[[500,620],[850,620]]),
+    makeListener(1700,620,[[1550,620],[1900,620]]),
+  ];
+  for(const L of listeners){ L.sighted=true; }
+  maws = [ makeMaw(1180,1550,[[1000,1550],[1360,1550]]) ];
+  crawlers = [];
+  door = { x:1180, y:2075, w:130, h:26 }; // PİKAP — güney çıkışı
+  buildGroundStation();
+  setObjective('BÖLÜM 6 — RADYO POYRAZ İŞGAL ALTINDA: 3 anahtarı bul, PİKAPLA KAÇ');
+  document.getElementById('stObjLabel').textContent='ANAHTAR';
+}
+
 function baseInit(){
   time=0; shake=0; markedT=0; footT=0; radioNoiseT=0; sneak=false;
   torchCharge=100; batteries=3; orbCount=2; fuseCount=0; noteCount=notesRead;
@@ -693,7 +779,7 @@ function collide(e){
 function update(dt){
   time+=dt;
   if(shake>0) shake=Math.max(0,shake-dt*3);
-  if(chapter>=3){ updateCh3(dt); return; }
+  if(chapter>=3 && chapter<=5){ updateCh3(dt); return; }
   if(markedT>0) markedT-=dt;
   document.getElementById('marked').classList.toggle('hidden', markedT<=0);
 
@@ -813,6 +899,19 @@ function update(dt){
     if(L.stun>0){ L.stun-=dt; if(L.stun<=0)L.state='patrol'; continue; }
     if(L.confuse>0){ L.confuse-=dt; L.dir+=dt*6; continue; }
 
+    /* YERLİ (görüşlü) — ışık ve hareketi GÖRÜR */
+    if(L.sighted){
+      const dS=dist(L,player);
+      if(dS<300){
+        let da=Math.abs(ang(L,player)-L.dir); da=Math.min(da,Math.PI*2-da);
+        const seen = da<0.75 && (!sneak || dS<130);
+        if(seen){
+          if(L.state!=='chase' && L.scream<=0){ L.scream=0.6; AU.screech(); }
+          L.state='chase'; L.target={x:player.x,y:player.y,src:'player'}; L.hearGlow=1;
+        }
+      }
+    }
+
     let tx,ty,sp=0;
     if(L.state==='patrol'){
       L.listenT-=dt;
@@ -837,7 +936,7 @@ function update(dt){
       L.x+=Math.cos(L.dir)*sp*dt; L.y+=Math.sin(L.dir)*sp*dt;
       collide(L);
     }
-    if(dist(L,player) < L.r+player.r+2 && state==='play') return kill('listener');
+    if(dist(L,player) < L.r+player.r+2 && state==='play') return kill(L.sighted?'yerli':'listener');
     if(dist(L,player)<70 && player.moving && !sneak){ L.state='chase'; L.target={x:player.x,y:player.y,src:'player'}; }
   }
 
@@ -960,10 +1059,10 @@ function update(dt){
   let hint='';
   for(const R of radios){ if(dist(R,player)<52){ hint=`[E] Radyoyu ${R.on?'KAPAT':'AÇ'} — mutantları çeker`; if(keys.KeyE&&!player._e){R.on=!R.on;AU.blip(R.on?900:300,0.1,0.12);} } }
   for(const Fu of fuses){ if(!Fu.got && dist(Fu,player)<45){
-    hint = chapter===1?'[E] Sigortayı al':'[E] Doğrulama bandını al';
+    hint = chapter===1?'[E] Sigortayı al':chapter===6?'[E] Anahtarı al':'[E] Doğrulama bandını al';
     if(keys.KeyE&&!player._e){Fu.got=true;fuseCount++;AU.blip(1200,0.2,0.15);
       const done=fuseCount===3;
-      setHint(chapter===1?`Sigorta ${fuseCount}/3 ${done?'— İSTASYON KAPISINA GİT!':''}`:`Bant ${fuseCount}/3 ${done?'— ANA VERİCİYE GİT (kuzey)!':''}`);} } }
+      setHint(chapter===1?`Sigorta ${fuseCount}/3 ${done?'— İSTASYON KAPISINA GİT!':''}`:chapter===6?`Anahtar ${fuseCount}/3 ${done?'— PİKAPA KOŞ (güney çıkışı)!':''}`:`Bant ${fuseCount}/3 ${done?'— ANA VERİCİYE GİT (kuzey)!':''}`);} } }
   for(const P of pickups){ if(!P.got && dist(P,player)<42){ hint = P.type==='bat'?'[E] Akü al':'[E] Yankı Küresi al';
     if(keys.KeyE&&!player._e){P.got=true; if(P.type==='bat')batteries++; else orbCount++; AU.blip(1000,0.15,0.12);} } }
   for(const N of notes){ if(!N.got && dist(N,player)<45){ hint='[E] Notu oku';
@@ -973,6 +1072,9 @@ function update(dt){
     if(chapter===1){
       if(fuseCount>=3){ hint='[E] İSTASYONA GİR'; if(keys.KeyE&&!player._e){ startChapter2Card(); } }
       else hint=`Kapı kilitli — sigorta gerekli (${fuseCount}/3)`;
+    } else if(chapter===6){
+      if(fuseCount>=3){ hint='[E] PİKAPA BİN VE KAÇ!'; if(keys.KeyE&&!player._e){ winGame(); } }
+      else hint=`Pikap kilitli — anahtar gerekli (${fuseCount}/3)`;
     } else if(!finalSeq){
       if(fuseCount>=3){ hint='[E] ANA VERİCİYİ KAPAT — HAZIR OL'; if(keys.KeyE&&!player._e){
         finalSeq={t:0,dur:35,waveT:0.1,pingT:0.1};
@@ -2012,6 +2114,56 @@ const dark = document.createElement('canvas');
 dark.width=W; dark.height=H;
 const dk = dark.getContext('2d');
 
+
+function drawYerli(L){
+  if(!L.alive){
+    cx.fillStyle='#141a17'; cx.beginPath(); cx.ellipse(L.x,L.y,18,9,L.dir,0,7); cx.fill();
+    cx.fillStyle='rgba(150,80,30,0.3)'; cx.beginPath(); cx.ellipse(L.x+3,L.y+3,12,6,L.dir,0,7); cx.fill();
+    return;
+  }
+  // meşale ışık halesi (sahnede)
+  const fl=0.7+Math.sin(time*11+L.drool)*0.3;
+  cx.fillStyle=`rgba(255,150,60,${0.06+fl*0.04})`;
+  cx.beginPath(); cx.arc(L.x,L.y,75,0,7); cx.fill();
+  const tw=L.twitch>0?Math.sin(time*60)*0.15:0;
+  cx.save(); cx.translate(L.x,L.y); cx.rotate(L.dir+Math.PI/2+tw);
+  cx.fillStyle='rgba(0,0,0,0.45)'; cx.beginPath(); cx.ellipse(4,5,13,17,0,0,7); cx.fill();
+  // yırtık kıyafetli insansı gövde
+  cx.fillStyle = L.stun>0?'#232833':'#4a3b2e';
+  cx.beginPath(); cx.ellipse(0,0,12,16,0,0,7); cx.fill();
+  cx.fillStyle='#3a2d22'; cx.fillRect(-11,-4,22,7); // kemer/paçavra
+  // kollar: biri MEŞALE tutuyor
+  cx.strokeStyle='#3d3126'; cx.lineWidth=4; cx.lineCap='round';
+  cx.beginPath(); cx.moveTo(-10,-2); cx.lineTo(-17,8); cx.stroke();
+  cx.beginPath(); cx.moveTo(10,-2); cx.lineTo(16,-14); cx.stroke();
+  // meşale
+  cx.strokeStyle='#5a4630'; cx.lineWidth=3;
+  cx.beginPath(); cx.moveTo(16,-14); cx.lineTo(18,-26); cx.stroke();
+  cx.fillStyle=`rgba(255,${140+fl*60|0},40,0.95)`;
+  cx.beginPath(); cx.ellipse(18,-30,4+fl*2,7+fl*3,0,0,7); cx.fill();
+  cx.fillStyle=`rgba(255,220,120,${0.5+fl*0.3})`;
+  cx.beginPath(); cx.ellipse(18,-30,2,3.4,0,0,7); cx.fill();
+  // kafa: GÖZLERİ VAR — hastalıklı sarı parlıyor
+  cx.fillStyle='#57483a'; cx.beginPath(); cx.arc(0,-9,7.4,0,7); cx.fill();
+  const eg = L.state==='chase' ? 1 : 0.55;
+  cx.fillStyle=`rgba(255,200,60,${eg})`;
+  cx.beginPath(); cx.arc(-2.8,-10.4,1.7,0,7); cx.arc(2.8,-10.4,1.7,0,7); cx.fill();
+  // kulaklarına kendi elleriyle taktıkları tel halkalar (frekans tarikatı)
+  cx.strokeStyle='#8a8f93'; cx.lineWidth=1.4;
+  cx.beginPath(); cx.arc(-7,-9,3,0,7); cx.stroke();
+  cx.beginPath(); cx.arc(7,-9,3,0,7); cx.stroke();
+  if(L.state==='chase'){
+    const mo=2.4+Math.sin(time*18)*1.6;
+    cx.fillStyle='#1a0a0d'; cx.beginPath(); cx.ellipse(0,-5.6,2.6,mo,0,0,7); cx.fill();
+  }
+  cx.restore();
+  if(L.scream>0){ cx.strokeStyle=`rgba(255,150,60,${L.scream})`; cx.lineWidth=2;
+    cx.beginPath(); cx.arc(L.x,L.y,(0.6-L.scream)*90+20,0,7); cx.stroke(); }
+  if(L.stun>0){ cx.fillStyle='#6fc7d9'; cx.font='14px Courier New'; cx.fillText('✶ ✶',L.x-12,L.y-30); }
+  if(L.state==='chase'){ cx.fillStyle='#ff4b3e'; cx.font='bold 20px Courier New'; cx.fillText('!',L.x-4,L.y-30); }
+  else if(L.state==='investigate'){ cx.fillStyle='#ffb03b'; cx.font='bold 16px Courier New'; cx.fillText('?',L.x-4,L.y-30); }
+}
+
 function drawListener(L){
   if(!L.alive){
     cx.fillStyle='#141a17'; cx.beginPath(); cx.ellipse(L.x,L.y,20,10,L.dir,0,7); cx.fill();
@@ -2175,14 +2327,14 @@ function drawCrawler(Cw){
 }
 
 function render(){
-  if(chapter>=3 && ch3 && ch3.phase==='room'){ renderCh3Room(); return; }
-  if(chapter>=3 && ch3 && ch3.phase==='vent'){ renderVent(); return; }
-  if(chapter>=3 && ch3 && ch3.phase==='maze'){ renderMaze(); return; }
+  if(chapter>=3 && chapter<=5 && ch3 && ch3.phase==='room'){ renderCh3Room(); return; }
+  if(chapter>=3 && chapter<=5 && ch3 && ch3.phase==='vent'){ renderVent(); return; }
+  if(chapter>=3 && chapter<=5 && ch3 && ch3.phase==='maze'){ renderMaze(); return; }
   const shakeMul = settings.shake/100;
   const sx = shake>0 ? rand(-shake,shake)*8*shakeMul : 0;
   const sy = shake>0 ? rand(-shake,shake)*8*shakeMul : 0;
 
-  if(chapter>=3){ // kaçış kamerası: oyuncuyu solda tut
+  if(chapter===3){ // kaçış kamerası: oyuncuyu solda tut
     cam.x = clamp(player.x-W*0.35, 0, WORLD.w-W);
     cam.y = clamp(player.y-H/2, 0, Math.max(0,WORLD.h-H));
   }
@@ -2190,7 +2342,7 @@ function render(){
 
   if(groundReady) cx.drawImage(ground,0,0);
 
-  if(chapter>=3){
+  if(chapter===3){
     // koridor duvarları
     for(const w of walls){
       cx.fillStyle='#151b21'; cx.fillRect(w.x,w.y,w.w,w.h);
@@ -2245,6 +2397,39 @@ function render(){
       }
       cx.strokeStyle='rgba(150,190,200,0.12)'; cx.beginPath(); cx.arc(G.x,G.y,G.r,0,7); cx.stroke();
     }
+    /* BÖLÜM 6: güneydeki PİKAP (kaçış aracı) */
+    if(chapter===6){
+      cx.save(); cx.translate(door.x, door.y+8);
+      cx.fillStyle='rgba(0,0,0,0.5)'; cx.beginPath(); cx.ellipse(4,26,74,20,0,0,7); cx.fill();
+      // kasa
+      cx.fillStyle='#4a3b28'; cx.fillRect(-70,-4,140,40);
+      cx.fillStyle='#5a4933'; cx.fillRect(-70,-4,140,10);
+      // kabin
+      cx.fillStyle='#3c3122'; cx.fillRect(-70,-26,52,26);
+      cx.fillStyle= fuseCount>=3 ? 'rgba(140,220,255,0.55)' : 'rgba(40,50,60,0.8)';
+      cx.fillRect(-64,-22,40,16);
+      // tekerler
+      cx.fillStyle='#0d0f11';
+      cx.beginPath(); cx.arc(-42,38,13,0,7); cx.arc(42,38,13,0,7); cx.fill();
+      cx.fillStyle='#2c3237';
+      cx.beginPath(); cx.arc(-42,38,6,0,7); cx.arc(42,38,6,0,7); cx.fill();
+      // farlar (anahtar tamamsa yanar)
+      if(fuseCount>=3){
+        cx.fillStyle=`rgba(255,230,150,${0.7+Math.sin(time*5)*0.3})`;
+        cx.fillRect(64,2,8,8); cx.fillRect(64,20,8,8);
+        cx.fillStyle='rgba(255,230,150,0.08)';
+        cx.beginPath(); cx.moveTo(72,4); cx.lineTo(200,-24); cx.lineTo(200,56); cx.lineTo(72,28); cx.fill();
+      }
+      cx.restore();
+      cx.fillStyle= fuseCount>=3 ? '#8fd9a8' : '#7d8f82';
+      cx.font='bold 12px Courier New';
+      cx.fillText(fuseCount>=3?'PİKAP HAZIR — [E] KAÇ!':'PİKAP — anahtar '+fuseCount+'/3', door.x-60, door.y-36);
+      // duvarlara tarikat işaretleri
+      cx.fillStyle=`rgba(255,150,60,${0.25+Math.sin(time*2)*0.1})`;
+      cx.font='22px Courier New';
+      for(const [wx,wy] of [[500,860],[1850,860],[1180,1270],[700,1720],[1700,1720]])
+        cx.fillText('◎', wx, wy);
+    }
     /* transmitter console */
     cx.fillStyle='#151d22'; cx.fillRect(1050,180,270,90);
     cx.strokeStyle='#2c3a41'; cx.strokeRect(1050,180,270,90);
@@ -2253,7 +2438,7 @@ function render(){
       cx.fillRect(1065+i*32,195,18,10);
     }
     cx.fillStyle='#8fd9a8'; cx.font='12px Courier New';
-    cx.fillText('ANA VERİCİ — 87.9 MHz', 1095, 235);
+    cx.fillText(chapter===6?'RADYO POYRAZ — KORSAN VERİCİ':'ANA VERİCİ — 87.9 MHz', 1085, 235);
     if(finalSeq){
       cx.fillStyle=`rgba(255,80,60,${0.4+Math.sin(time*12)*0.3})`;
       cx.font='bold 14px Courier New'; cx.fillText('!! KAPANIYOR !!', 1120, 255);
@@ -2333,7 +2518,7 @@ function render(){
   }
 
   for(const Cw of crawlers) if(vis(Cw.x,Cw.y,60)) drawCrawler(Cw);
-  for(const L of listeners) if(vis(L.x,L.y,60)) drawListener(L);
+  for(const L of listeners) if(vis(L.x,L.y,60)) (L.sighted?drawYerli(L):drawListener(L));
   for(const M of maws) if(vis(M.x,M.y,80)) drawMaw(M);
 
   /* PLAYER */
@@ -2352,7 +2537,7 @@ function render(){
   /* darkness + lights */
   dk.clearRect(0,0,W,H);
   dk.fillStyle= cheats.bright ? 'rgba(2,5,7,0.25)'
-              : chapter===2 ? 'rgba(1,2,4,0.965)' : 'rgba(2,5,7,0.94)';
+              : (chapter===2||chapter===6) ? 'rgba(1,2,4,0.965)' : 'rgba(2,5,7,0.94)';
   dk.fillRect(0,0,W,H);
   dk.globalCompositeOperation='destination-out';
   const px=player.x-cam.x+sx, py=player.y-cam.y+sy;
@@ -2369,6 +2554,13 @@ function render(){
     gr=dk.createRadialGradient(rx,ry,4,rx,ry,70);
     gr.addColorStop(0,'rgba(0,0,0,0.7)'); gr.addColorStop(1,'rgba(0,0,0,0)');
     dk.fillStyle=gr; dk.beginPath(); dk.arc(rx,ry,70,0,7); dk.fill(); }
+  /* Yerli meşaleleri: karanlıkta uzaktan görünürler */
+  for(const L of listeners){ if(!L.alive||!L.sighted) continue;
+    const rx=L.x-cam.x, ry=L.y-cam.y;
+    if(rx<-100||rx>W+100||ry<-100||ry>H+100) continue;
+    gr=dk.createRadialGradient(rx,ry,5,rx,ry,90);
+    gr.addColorStop(0,'rgba(0,0,0,0.75)'); gr.addColorStop(1,'rgba(0,0,0,0)');
+    dk.fillStyle=gr; dk.beginPath(); dk.arc(rx,ry,90,0,7); dk.fill(); }
   if(chapter===1){
     const lx=1300-cam.x, ly=80-cam.y;
     gr=dk.createRadialGradient(lx,ly,5,lx,ly,120);
@@ -2395,7 +2587,7 @@ function render(){
   }
 
   /* red emergency tint in interior */
-  if(chapter===2){
+  if(chapter===2||chapter===6){
     cx.fillStyle=`rgba(120,20,15,${0.03+Math.sin(time*1.5)*0.015})`;
     cx.fillRect(0,0,W,H);
   }
@@ -2547,6 +2739,7 @@ function kill(by){
     : by==='watcher' ? '"Pencere. Hep pencereydi.<br>Sen kameralara bakarken, o SANA bakıyordu."'
     : by==='ventcreep' ? '"Işığı bir saniye indirdin.<br>Kanallarda bir saniye, bir ömürdür."'
     : by==='hunter' ? '"Kanallarda durmak yoktur.<br>Sacların ezilme sesi... hep bir adım gerideydi."'
+    : by==='yerli' ? '"Seni gördüler. Kendi stüdyonda, kendi sesinin<br>ilahisi altında... yabancıydın artık."'
     : '"Kulak çanakları kafana kapandı.<br>Ve dünyadaki bütün sesler tek bir frekansa indi: 87.9"';
   }, 1400);
 }
@@ -2557,11 +2750,33 @@ function winGame(){
     startChapter3TitleDrop();
     return;
   }
+  if(chapter===5){
+    // Bölüm 5 bitti → ZAMAN BÜKÜLMESİ kartları → BÖLÜM 6
+    AU.stopMusic(2);
+    state='intro';
+    document.getElementById('hud').classList.add('hidden');
+    showCards(ch6Pages, startChapter6);
+    return;
+  }
   state='win';
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('finalbar').classList.add('hidden');
   document.getElementById('win').classList.remove('hidden');
-  if(chapter>=3){
+  if(chapter===6){
+    AU.stopMusic(3);
+    AU.blip(87.9*4,1.5,0.2,'sine');
+    document.getElementById('winText').innerHTML =
+    `Kontak üç deneme sonra tuttu. Pikap homurdanarak uyandı<br>
+    ve meşaleli siluetler aynada küçülüp kayboldu.<br><br>
+    Bir yıl. Beş saatlik karanlığa karşılık bir yıl.<br>
+    Radyon, evin, adın — hepsi frekansın müritlerine kalmıştı.<br>
+    Ama artık biliyorsun: Elif hayatta ve seni bekliyor.<br><br>
+    Telsiz cızırdadı. Parazitsiz, tertemiz:<br><br>
+    <i>"Deniz? Beni... duyuyor musun?"</i><br><br>
+    Gaza bastın.<br><br>
+    — BİRİNCİ SEZON FİNALİ —<br>
+    <span style="color:#6f7f74;font-size:12px">SESSİZ FREKANS'ı bitirdin. Okunan not: ${notesRead}/10</span>`;
+  } else if(chapter>=3){
     AU.stopMusic(3);
     AU.blip(87.9*4,1.5,0.2,'sine');
     document.getElementById('winText').innerHTML =
@@ -2674,6 +2889,38 @@ Hepsi gelecekmiş. Hepsi.
 
 <span class="red">Olsun. Bu sefer dinliyorum.</span>`];
 
+const ch6Pages = [
+`Kapaktan dışarı yuvarlandın. Şafak... şafak DEĞİLDİ.
+
+Orman farklıydı. Yollar otlarla kaplanmış,
+pikabının üstünde bir yıllık yaprak birikmişti.
+
+Telefonun açıldı. Tarihe baktın.
+Bir daha baktın.
+
+İçeride 5 saat geçirmiştin.
+Dışarıda 1 YIL geçmişti.`,
+`87.9'un alanı zamanı büküyordu. Elif'in notu
+cebinde yanıyordu: "Üzgünüm."
+
+Şehre indin. Radyo Poyraz'ın ışıkları YANIYORDU.
+Ama o cıngıl... senin cıngılın değildi.
+
+Hoparlörlerden kendi sesin yayılıyordu —
+eski kayıtların, ters çevrilmiş, ilahiye dönüştürülmüş.`,
+`Onlara "Yerliler" diyorlar artık.
+Frekansı duyup DELİRMEYENLER. Onun yerine TAPANLAR.
+
+Bir yıldır senin binanda yaşıyorlar.
+Senin sesini çalıyor, senin kulene tapıyorlar.
+Ve şimdi evine döndün.
+
+KÖR DEĞİLLER, Deniz. Bunlar GÖRÜYOR.
+Meşaleleri var. Gözleri var. Sayıları var.
+
+<span class="red">Stüdyo anahtarı. Jeneratör anahtarı. Kontak anahtarı.
+Üçünü bul. Pikaba bin. Ve Elif'e git.</span>`];
+
 let introIdx=0, introSet=null;
 
 function showCards(pages, after){
@@ -2683,6 +2930,7 @@ function showCards(pages, after){
   iv.classList.remove('hidden');
   // konsept görselini bölüme göre arka plana koy
   const bg = pages===ch2Pages ? 'assets/level2.png'
+           : pages===ch6Pages ? 'assets/title.png'
            : pages===introPages ? 'assets/concept_forest.png' : '';
   iv.style.background = bg
     ? `linear-gradient(rgba(2,4,5,0.82), rgba(2,4,5,0.94)), url('${bg}') center/cover`
@@ -2710,6 +2958,13 @@ function startChapter1(){
   hideAll(); buildChapter1(); state='play';
   document.getElementById('hud').classList.remove('hidden');
   setHint('C = sessiz yürüyüş. Kuzeydeki kuleye ulaş.',5);
+}
+function startChapter6(){
+  hideAll(); buildChapter6(); state='play';
+  document.getElementById('hud').classList.remove('hidden');
+  document.getElementById('btnCh6').classList.remove('hidden');
+  AU.startMusic();
+  setHint('Yerliler GÖRÜR — ışıklarından uzak dur, arkalarından dolan!',6);
 }
 function startChapter2(){
   hideAll(); buildChapter2(); state='play';
@@ -2876,12 +3131,13 @@ $('admSkip').onclick=()=>{
   else if(chapter===2){ startChapter3TitleDrop(); }
   else if(chapter===3){ startChapter4(); }
   else if(chapter===4){ startChapter5(); }
+  else if(chapter===5){ AU.stopMusic(1); state='intro'; showCards(ch6Pages, startChapter6); }
   else { winGame(); }
 };
 $('admObjective').onclick=()=>{
   for(const F of fuses) F.got=true;
   fuseCount=3;
-  setHint(chapter===1?'Sigortalar tamamlandı — kapıya git!':'Bantlar tamamlandı — vericiye git!',4);
+  setHint(chapter===1?'Sigortalar tamamlandı — kapıya git!':chapter===6?'Anahtarlar tamam — pikaba koş (güney)!':'Bantlar tamamlandı — vericiye git!',4);
   AU.blip(1200,0.2,0.15); flashBtn('admObjective');
 };
 $('admFull').onclick=()=>{
@@ -2949,13 +3205,15 @@ document.getElementById('btnCh2').onclick=()=>{ AU.init(); AU.stopMusic(0.5); st
 document.getElementById('btnCh3').onclick=()=>{ AU.init(); startChapter3TitleDrop(); };
 document.getElementById('btnCh4').onclick=()=>{ startChapter4(); };
 document.getElementById('btnCh5').onclick=()=>{ startChapter5(); };
+document.getElementById('btnCh6').onclick=()=>{ AU.init(); state='intro'; hideAll(); document.getElementById('intro').classList.remove('hidden'); showCards(ch6Pages, startChapter6); };
 document.getElementById('btnNext').onclick=()=>{
   introIdx++;
   if(introIdx>=introSet.pages.length) endCards(); else typePage();
 };
 document.getElementById('skipIntro').onclick=()=>endCards();
 document.getElementById('btnRetry').onclick=()=>{ // checkpoint: restart current chapter
-  if(chapter===5) startChapter5();
+  if(chapter===6) startChapter6();
+  else if(chapter===5) startChapter5();
   else if(chapter===4) startChapter4();
   else if(chapter===3) startChapter3();
   else if(chapter===2) startChapter2();
