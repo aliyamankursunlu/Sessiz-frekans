@@ -1626,6 +1626,123 @@ function renderMaze(){
   postProcess();
 }
 
+function renderVent(){
+  const R=ch3;
+  cx.fillStyle='#07090c'; cx.fillRect(0,0,W,H);
+  /* AI ARKA PLAN: havalandırma odası konsept görseli */
+  if(IMG.roomVent && IMG.roomVent.complete && IMG.roomVent.naturalWidth){
+    cx.drawImage(IMG.roomVent, 0,0, W,H);
+    cx.fillStyle='rgba(3,5,8,0.5)'; cx.fillRect(0,0,W,H);
+    cx.fillStyle=`rgba(120,20,15,${0.04+Math.sin(time*2.2)*0.025})`; cx.fillRect(0,0,W,H);
+  } else {
+    cx.fillStyle='#0e1216'; cx.fillRect(40,80,W-80,H-140);
+    cx.strokeStyle='#1c242b'; cx.lineWidth=3; cx.strokeRect(40,80,W-80,H-140);
+    cx.strokeStyle='#161d23'; cx.lineWidth=10;
+    for(const y of [100, 130]){ cx.beginPath(); cx.moveTo(40,y); cx.lineTo(W-40,y); cx.stroke(); }
+  }
+
+  /* kanal ağızları */
+  for(const v of R.vents){
+    cx.fillStyle='#05070a'; cx.fillRect(v.x-46,v.y-34,92,68);
+    cx.strokeStyle='#26313a'; cx.lineWidth=3; cx.strokeRect(v.x-46,v.y-34,92,68);
+    for(let i=0;i<5;i++){ cx.strokeStyle='#1a2229'; cx.lineWidth=2;
+      cx.beginPath(); cx.moveTo(v.x-40,v.y-26+i*13); cx.lineTo(v.x+40,v.y-26+i*13); cx.stroke(); }
+  }
+
+  /* fanlar (görev) */
+  for(const f of R.fans){
+    const spin = f.done ? time*12 : time*(0.5+f.prog/40);
+    cx.save(); cx.translate(f.x,f.y);
+    cx.strokeStyle= f.done?'#4dbd6e':'#3a4650'; cx.lineWidth=4;
+    cx.beginPath(); cx.arc(0,0,46,0,7); cx.stroke();
+    cx.rotate(spin);
+    cx.fillStyle= f.done?'rgba(77,189,110,0.7)':'rgba(120,140,155,0.5)';
+    for(let i=0;i<4;i++){ cx.rotate(Math.PI/2);
+      cx.beginPath(); cx.ellipse(0,-24,10,22,0,0,7); cx.fill(); }
+    cx.restore();
+    // progress
+    if(!f.done){
+      cx.fillStyle='rgba(10,16,14,0.85)'; cx.fillRect(f.x-40,f.y+58,80,10);
+      cx.fillStyle='#ffb03b'; cx.fillRect(f.x-40,f.y+58,80*f.prog/100,10);
+      cx.strokeStyle='#2c3a31'; cx.strokeRect(f.x-40,f.y+58,80,10);
+    } else {
+      cx.fillStyle='#4dbd6e'; cx.font='bold 12px Courier New'; cx.fillText('✓',f.x-4,f.y+66);
+    }
+  }
+
+  /* yaratıklar — kanaldan merkeze süzülen karaltılar */
+  const tx=W/2, ty=H-220;
+  for(const c of R.creeps){
+    const cxp=c.x+(tx-c.x)*c.prog, cyp=c.y+(ty-c.y)*c.prog;
+    const s=0.5+c.prog*1.3; // yaklaştıkça büyür
+    const lit = mouse.down && R.flash>0 && Math.hypot(mouse.x-cxp,mouse.y-cyp)<110;
+    cx.save(); cx.translate(cxp,cyp);
+    // gövde: buruşuk karaltı
+    cx.fillStyle= lit ? '#3a2f3d' : '#15121a';
+    cx.beginPath(); cx.ellipse(0,0,22*s,30*s,Math.sin(time*3+c.x)*0.2,0,7); cx.fill();
+    // pençeler
+    cx.strokeStyle= lit?'#2c2430':'#0e0b12'; cx.lineWidth=4*s; cx.lineCap='round';
+    const wig=Math.sin(time*14+c.y)*6*s;
+    cx.beginPath(); cx.moveTo(-14*s,0); cx.lineTo(-26*s,14*s+wig); cx.stroke();
+    cx.beginPath(); cx.moveTo(14*s,0); cx.lineTo(26*s,14*s-wig); cx.stroke();
+    // parlayan çift göz çukuru (ışıkta kısılır)
+    const eg = lit ? 0.25 : 0.5+Math.sin(time*8)*0.4;
+    cx.fillStyle=`rgba(255,70,90,${eg})`;
+    cx.beginPath(); cx.arc(-7*s,-8*s,3.4*s,0,7); cx.arc(7*s,-8*s,3.4*s,0,7); cx.fill();
+    // ışık yiyorsa büzülme efekti
+    if(lit){ cx.strokeStyle=`rgba(140,220,240,${0.4+Math.sin(time*22)*0.3})`;
+      cx.lineWidth=2; cx.beginPath(); cx.arc(0,0,34*s,0,7); cx.stroke(); }
+    cx.restore();
+  }
+
+  /* karanlık + fener (fare konumunda ışık) */
+  dk.clearRect(0,0,W,H);
+  dk.fillStyle='rgba(1,2,4,0.93)'; dk.fillRect(0,0,W,H);
+  dk.globalCompositeOperation='destination-out';
+  // hafif ortam: fan bölgesi
+  let gr=dk.createRadialGradient(W/2,H-190,20,W/2,H-190,320);
+  gr.addColorStop(0,'rgba(0,0,0,0.45)'); gr.addColorStop(1,'rgba(0,0,0,0)');
+  dk.fillStyle=gr; dk.beginPath(); dk.arc(W/2,H-190,320,0,7); dk.fill();
+  if(mouse.down && R.flash>0){
+    gr=dk.createRadialGradient(mouse.x,mouse.y,20,mouse.x,mouse.y,150);
+    gr.addColorStop(0,'rgba(0,0,0,0.98)'); gr.addColorStop(1,'rgba(0,0,0,0)');
+    dk.fillStyle=gr; dk.beginPath(); dk.arc(mouse.x,mouse.y,150,0,7); dk.fill();
+  }
+  dk.globalCompositeOperation='source-over';
+  cx.drawImage(dark,0,0);
+  if(mouse.down && R.flash>0){
+    cx.fillStyle='rgba(140,220,240,0.07)';
+    cx.beginPath(); cx.arc(mouse.x,mouse.y,150,0,7); cx.fill();
+  }
+
+  /* HUD */
+  cx.fillStyle='rgba(4,8,8,0.75)'; cx.fillRect(18,18,330,86);
+  cx.fillStyle='#ffb03b'; cx.font='bold 15px Courier New';
+  cx.fillText('HAVALANDIRMA — FANLARI TAMİR ET', 30, 42);
+  cx.fillStyle='#9fb3a4'; cx.font='11px Courier New';
+  cx.fillText('FARE = fener yönü  [SOL TIK basılı] = ışık tut', 30, 62);
+  cx.fillText('Yaratıklara ışık tut → geri kaçarlar!', 30, 78);
+  const done=R.fans.filter(f=>f.done).length;
+  cx.fillStyle='#4dbd6e'; cx.font='bold 13px Courier New';
+  cx.fillText(`FAN: ${done}/3`, 30, 96);
+  // fener pili
+  cx.fillStyle='rgba(4,8,8,0.75)'; cx.fillRect(W-220,18,200,52);
+  cx.fillStyle= R.flash<25?'#ff4b3e':'#6fc7d9'; cx.font='bold 13px Courier New';
+  cx.fillText(`FENER %${R.flash|0}`, W-208, 40);
+  cx.fillStyle='rgba(10,16,14,0.9)'; cx.fillRect(W-208,48,176,10);
+  cx.fillStyle= R.flash<25?'#ff4b3e':'#6fc7d9'; cx.fillRect(W-208,48,176*R.flash/100,10);
+  if(R.ventDone){
+    cx.fillStyle=`rgba(77,189,110,${0.5+Math.sin(time*6)*0.3})`;
+    cx.font='bold 26px Courier New';
+    cx.fillText('HAVALANDIRMA AKTİF — SİS TEMİZLENİYOR...', W/2-320, H/2);
+  }
+  // hint alanı
+  const h=document.getElementById('hint').textContent;
+  if(h){ cx.fillStyle='rgba(4,8,8,0.7)'; cx.fillRect(W/2-180,H-60,360,26);
+    cx.fillStyle='#e8f0e6'; cx.font='13px Courier New';
+    cx.textAlign='center'; cx.fillText(h, W/2, H-42); cx.textAlign='left'; }
+}
+
 /* güvenlik odası & kamera render */
 function renderCh3Room(){
   const R=ch3;
